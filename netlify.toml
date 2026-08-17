@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "public"
+
+[context.production.environment]
+  # Set these in Netlify UI or CLI for production
+  # API_URL = "https://your-backend.example.com/api"
+  # STAFF_API_URL = "https://your-staff-backend.example.com/api/staff"
+  # SOCKET_URL = "https://your-backend.example.com"

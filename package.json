@@ -1,0 +1,27 @@
+{
+  "name": "canteen-management-system",
+  "version": "1.0.0",
+  "description": "Full-Stack Canteen Management System with UPI, Cash Approval, and Real-Time WebSockets",
+  "main": "start.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node start.js",
+    "build": "node generate-config.js"
+  },
+  "dependencies": {
+    "axios": "^1.19.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.0",
+    "multer": "^2.2.0",
+    "mysql2": "^3.9.7",
+    "pdfkit": "^0.15.0",
+    "qrcode": "^1.5.3",
+    "razorpay": "^2.9.2",
+    "socket.io": "^4.7.5",
+    "sqlite3": "^6.0.1",
+    "web-push": "^3.6.7"
+  }
+}

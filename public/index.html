@@ -1,0 +1,3279 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus Canteen - Ordering Portal</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/config.js"></script>
+    <style>
+        /* CSS variables for theme modes */
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-card: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --primary-light: #e0e7ff;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --border: #e2e8f0;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+            --font-main: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        async function confirmUpiPaid() {
+            if ( !latestOrderResult || !latestOrderResult.order_id) return alert('No active UPI order found.');
+
+            try {
+                const res=await fetch(`$ {
+                        API_URL
+                    }
+
+                    /payments/confirm-paid`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+
+                    ,
+                    body: JSON.stringify({
+                        order_id: latestOrderResult.order_id, customer_id: customerSession.customer_id, transaction_ref_id: latestOrderResult.upi_ref_id
+                    })
+            });
+        const data=await res.json();
+
+        if (data.success) {
+            showToast('Submitted', 'Marked as paid — accountant will settle shortly.');
+            // Switch back to catalog or receipt screen
+            showCatalogScreen();
+        }
+
+        else {
+            alert(data.error || 'Failed to notify payment');
+        }
+        }
+
+        catch (e) {
+            alert('Error: ' + e.message);
+        }
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-card: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #818cf8;
+            --primary-hover: #6366f1;
+            --primary-light: #312e81;
+            --border: #334155;
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4);
+        }
+
+        [data-theme="contrast"] {
+            --bg-primary: #000000;
+            --bg-card: #000000;
+            --text-main: #ffffff;
+            --text-muted: #ffffff;
+            --primary: #ffff00;
+            --primary-hover: #ffff00;
+            --primary-light: #000000;
+            --border: #ffffff;
+            --success: #00ff00;
+            --warning: #ffff00;
+            --danger: #ff0000;
+            --shadow-md: none;
+            --shadow-lg: none;
+        }
+
+        [data-theme="retro"] {
+            --bg-primary: #fcf6e4;
+            --bg-card: #f7eed3;
+            --text-main: #3d3127;
+            --text-muted: #786450;
+            --primary: #cc6633;
+            --primary-hover: #b34a19;
+            --primary-light: #f5d6c4;
+            --border: #d4c3ab;
+            --success: #6e8b3d;
+            --warning: #d99726;
+            --danger: #b22222;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-main);
+            transition: background-color 0.25s, border-color 0.25s, color 0.2s;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 480px;
+            /* Mobile width default */
+            min-height: 100vh;
+            background-color: var(--bg-primary);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.05);
+        }
+
+        header {
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-md);
+        }
+
+        .header-logo {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .theme-select {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 4px 6px;
+            font-size: 11px;
+            font-weight: 600;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .profile-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border);
+        }
+
+        .screen {
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 14px;
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            outline: none;
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: #ffffff;
+            border: none;
+            padding: 14px 20px;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn:disabled {
+            background-color: var(--border);
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        .btn-outline {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+        }
+
+        .btn-success {
+            background-color: var(--success);
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+        }
+
+        /* Promo Banners */
+        .ad-carousel {
+            position: relative;
+            width: 100%;
+            height: 220px;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
+            margin-bottom: 8px;
+        }
+
+        .ad-slide {
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 16px;
+            color: #ffffff;
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .ad-slide.active {
+            opacity: 1;
+            position: relative;
+        }
+
+        .ad-slide::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.15) 100%);
+            z-index: 1;
+        }
+
+        .ad-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .ad-title {
+            font-size: 24px;
+            font-weight: 900;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+        }
+
+        .ad-desc {
+            font-size: 13.5px;
+            opacity: 0.95;
+            margin-bottom: 8px;
+            max-width: 80%;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+        }
+
+        .ad-dots {
+            position: absolute;
+            bottom: 8px;
+            right: 12px;
+            display: flex;
+            gap: 6px;
+            z-index: 3;
+        }
+
+        .ad-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.4);
+            cursor: pointer;
+        }
+
+        .ad-dot.active {
+            background-color: #ffffff;
+            width: 12px;
+            border-radius: 3px;
+        }
+
+        .section-scroller {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            scrollbar-width: none;
+        }
+
+        .section-scroller::-webkit-scrollbar {
+            display: none;
+        }
+
+        .section-pill {
+            flex: 0 0 auto;
+            padding: 10px 18px;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+
+        .section-pill.active {
+            background-color: var(--primary);
+            color: #ffffff;
+            border-color: var(--primary);
+        }
+
+        .canteen-pill {
+            flex: 0 0 auto;
+            padding: 10px 18px;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .canteen-pill:hover {
+            transform: translateY(-2px);
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
+        }
+
+        .canteen-pill.active {
+            background-color: var(--primary);
+            color: #ffffff;
+            border-color: var(--primary);
+            box-shadow: 0 6px 14px rgba(99, 102, 241, 0.25);
+        }
+
+        .canteen-pill.active:hover {
+            color: #ffffff;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 18px rgba(99, 102, 241, 0.3);
+        }
+        }
+
+        .catalog-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .category-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .category-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-main);
+            border-left: 4px solid var(--primary);
+            padding-left: 8px;
+            margin-top: 8px;
+        }
+
+        .food-item-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            display: flex;
+            gap: 14px;
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: fadeUp 0.5s ease-out both;
+        }
+
+        .food-item-card:hover {
+            transform: translateY(-4px) scale(1.01);
+            box-shadow: var(--shadow-lg), 0 6px 20px rgba(99, 102, 241, 0.08);
+            border-color: rgba(99, 102, 241, 0.25);
+        }
+
+        .item-thumb {
+            width: 80px;
+            height: 80px;
+            border-radius: var(--radius-sm);
+            object-fit: cover;
+        }
+
+        .item-details {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .item-name-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .item-name {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .healthy-badge {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: 600;
+            border-radius: 4px;
+        }
+
+        .item-ingredients {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .item-pricing-action {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .price-box {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .original-price {
+            text-decoration: line-through;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .discount-price {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 15px;
+        }
+
+        .item-action-btn {
+            background-color: var(--primary);
+            color: #ffffff;
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .item-qty-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 2px 8px;
+        }
+
+        .qty-adjust {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 16px;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .qty-val {
+            font-size: 13px;
+            font-weight: 600;
+            min-width: 14px;
+            text-align: center;
+        }
+
+        /* Floating footer (mobile) */
+        .cart-footer-bar {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 480px;
+            background-color: var(--bg-card);
+            border-top: 1px solid var(--border);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.05);
+            z-index: 99;
+        }
+
+        .cart-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .cart-qty-total {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .cart-price-total {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .checkout-btn {
+            background-color: var(--success);
+            color: #ffffff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Desktop columns placeholder */
+        .desktop-category-sidebar,
+        .desktop-cart-sidebar {
+            display: none;
+        }
+
+        /* Drawers */
+        .drawer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: flex-end;
+        }
+
+        .drawer {
+            background-color: var(--bg-card);
+            width: 100%;
+            max-width: 480px;
+            border-top-left-radius: var(--radius-lg);
+            border-top-right-radius: var(--radius-lg);
+            padding: 24px 20px;
+            max-height: 85%;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+            }
+
+            to {
+                transform: translateY(0);
+            }
+        }
+
+        .drawer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+        }
+
+        .drawer-title {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .drawer-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: var(--text-muted);
+        }
+
+        .summary-total {
+            border-top: 1px dashed var(--border);
+            padding-top: 12px;
+            font-weight: 700;
+            font-size: 17px;
+            color: var(--text-main);
+        }
+
+        .discount-tag {
+            color: var(--success);
+            background-color: rgba(16, 185, 129, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            align-self: flex-start;
+        }
+
+        .payment-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .pay-option-card {
+            border: 2px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            text-align: center;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .pay-option-card.active {
+            border-color: var(--primary);
+            background-color: var(--primary-light);
+            color: var(--primary-hover);
+        }
+
+        /* QR Scan */
+        .qr-box {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .qr-code-img {
+            width: 180px;
+            height: 180px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 10px;
+            background-color: white;
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(99, 102, 241, 0.2);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Receipt Invoice Ticket */
+        .receipt-ticket {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .receipt-ticket::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--success));
+        }
+
+        .receipt-header {
+            text-align: center;
+            border-bottom: 2px dashed var(--border);
+            padding-bottom: 16px;
+        }
+
+        .receipt-canteen-name {
+            font-size: 18px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .receipt-meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 12px;
+            margin-top: 14px;
+            color: var(--text-muted);
+            text-align: left;
+        }
+
+        .receipt-meta-item strong {
+            color: var(--text-main);
+        }
+
+        .receipt-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        .receipt-table th {
+            background: none;
+            border-bottom: 1px solid var(--border);
+            padding: 8px 0;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .receipt-table td {
+            padding: 8px 0;
+            border-bottom: 1px dashed var(--border);
+        }
+
+        .receipt-bill-summary {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding-top: 12px;
+            border-top: 2px dashed var(--border);
+            font-size: 13px;
+        }
+
+        .receipt-bill-row {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-muted);
+        }
+
+        .receipt-bill-row.total {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--primary);
+            border-top: 1px solid var(--border);
+            padding-top: 8px;
+        }
+
+        /* Stars rating */
+        .rating-box {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .star-rating {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .star {
+            font-size: 32px;
+            color: var(--border);
+            cursor: pointer;
+        }
+
+        .star.selected {
+            color: var(--warning);
+        }
+
+        .feedback-item-rating {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+            gap: 12px;
+        }
+
+        /* High-Impact Announcement Popup Modal */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 2100;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .popup-card {
+            background-color: var(--bg-card);
+            border: 3px solid var(--primary);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            width: 100%;
+            max-width: 580px;
+            /* Big Event Flyer size! */
+            box-shadow: var(--shadow-lg);
+            text-align: center;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        @keyframes popIn {
+            from {
+                transform: scale(0.85);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .popup-icon-wrapper {
+            background-color: var(--primary-light);
+            color: var(--primary);
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 40px);
+            max-width: 440px;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-left: 5px solid var(--success);
+            padding: 14px 16px;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            z-index: 2000;
+            display: none;
+        }
+
+        .toast-title {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .toast-body {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Public feedback block reviews */
+        .feedback-bubble {
+            background-color: var(--bg-primary);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .feedback-bubble-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+        }
+
+        /* COMPUTER VIEWPORT STYLES OVERRIDES */
+        @media (min-width: 769px) {
+            body {
+                padding: 40px 20px;
+            }
+
+            .app-container {
+                max-width: 1200px;
+                min-height: auto;
+                border-radius: var(--radius-lg);
+                box-shadow: var(--shadow-lg);
+                border: 1px solid var(--border);
+                overflow: hidden;
+            }
+
+            .screen {
+                padding: 24px;
+            }
+
+            .catalog-layout {
+                display: grid;
+                grid-template-columns: 220px 1fr 340px;
+                gap: 24px;
+                align-items: start;
+            }
+
+            .desktop-category-sidebar {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                position: sticky;
+                top: 85px;
+            }
+
+            .desktop-category-sidebar h4 {
+                font-size: 12px;
+                font-weight: 700;
+                text-transform: uppercase;
+                color: var(--text-muted);
+                letter-spacing: 0.5px;
+                margin-bottom: 8px;
+            }
+
+            .desktop-cat-btn {
+                background: none;
+                border: none;
+                padding: 10px 14px;
+                border-radius: var(--radius-md);
+                text-align: left;
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--text-muted);
+                cursor: pointer;
+                width: 100%;
+            }
+
+            .desktop-cat-btn.active {
+                background-color: var(--primary-light);
+                color: var(--primary);
+            }
+
+            .desktop-cat-btn:hover {
+                background-color: var(--bg-primary);
+            }
+
+            .catalog-items-feed {
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .category-items-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+                gap: 16px;
+            }
+
+            .food-item-card {
+                flex-direction: column;
+                height: 100%;
+            }
+
+            .item-thumb {
+                width: 100%;
+                height: 140px;
+                border-radius: var(--radius-md);
+            }
+
+            .item-details {
+                margin-top: 10px;
+                gap: 8px;
+            }
+
+            /* Persistent Cart */
+            .desktop-cart-sidebar {
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+                position: sticky;
+                top: 85px;
+                background-color: var(--bg-card);
+                border: 1px solid var(--border);
+                border-radius: var(--radius-lg);
+                padding: 20px;
+                box-shadow: var(--shadow-md);
+            }
+
+            .cart-footer-bar {
+                display: none !important;
+            }
+
+            #sections-pill-container {
+                display: flex;
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app-container">
+        <!-- Main Top Bar -->
+        <header>
+            <div class="header-logo" style="flex-wrap: wrap; gap: 8px;">
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                    </svg>
+                    <span>Canteen Portal</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <select id="themeSelector" class="theme-select" onchange="changeTheme(this.value)">
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                    <option value="contrast">Contrast</option>
+                    <option value="retro">Retro</option>
+                </select>
+                <button class="profile-btn" onclick="openProfileEdit()" title="Edit Profile">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" />
+                    </svg>
+                </button>
+                <button class="btn-outline" style="margin-left:8px; padding:8px 10px; font-size:13px;"
+                    onclick="openMyOrders()">My Orders</button>
+                <button class="btn-outline" style="margin-left:8px; padding:8px 10px; font-size:13px;"
+                    onclick="openGeneralFeedbackModal()">✍️ Suggestion</button>
+                <button id="enable-push-btn" class="btn" style="margin-left:8px; padding:8px 10px; font-size:13px;"
+                    onclick="enablePushFlow()">🔔 Enable Push</button>
+            </div>
+        </header>
+
+        <!-- SCREEN 1: Customer Verification -->
+        <div id="screen-verify" class="screen">
+            <div class="card">
+                <h3 style="margin-bottom: 8px;">Verify Contact Details</h3>
+                <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 20px;">Avoid duplicate IDs by using
+                    your existing profile details.</p>
+
+                <div class="form-group">
+                    <label>Mobile Phone (10 digits) *</label>
+                    <input type="tel" id="input-phone" class="form-control" placeholder="e.g. 9876543210"
+                        maxlength="10">
+                </div>
+                <div class="form-group">
+                    <label>Email Address *</label>
+                    <input type="email" id="input-email" class="form-control" placeholder="e.g. name@student.com">
+                </div>
+
+                <div id="new-profile-fields"
+                    style="display: none; border-top: 1px dashed var(--border); padding-top: 16px; margin-top: 16px;">
+                    <p style="color: var(--warning); font-size: 12px; font-weight: 600; margin-bottom: 12px;">Complete
+                        Profile Setup:</p>
+                    <div class="form-group">
+                        <label>Your Full Name *</label>
+                        <input type="text" id="input-name" class="form-control" placeholder="e.g. John Doe">
+                    </div>
+                    <div class="form-group">
+                        <label>Profile Category *</label>
+                        <select id="input-category" class="form-control">
+                            <option value="Student">Student (Dynamic Discount!)</option>
+                            <option value="Faculty">Faculty</option>
+                            <option value="Visitor">Visitor</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button id="verify-submit" class="btn" style="margin-top: 12px;"
+                    onclick="verifyOrRegisterCustomer()">Continue to Canteens &rarr;</button>
+            </div>
+        </div>
+
+        <!-- SCREEN 2: Menu / Ordering Catalog (Main Catalog View) -->
+        <div id="screen-catalog" class="screen" style="display: none;">
+            <!-- Ad Carousel Banners -->
+            <div class="ad-carousel" id="ad-carousel-container">
+                <!-- Slides injected dynamically -->
+            </div>
+
+            <!-- Canteens Selection (Tab buttons) -->
+            <div>
+                <h4
+                    style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+                    Canteen Locations</h4>
+                <div class="section-scroller" id="canteens-buttons-container" style="margin-bottom: 8px;">
+                    <!-- Canteen buttons injected dynamically -->
+                </div>
+            </div>
+
+            <!-- Canteen Sections selector -->
+            <div>
+                <h4
+                    style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+                    Food Sections</h4>
+                <div class="section-scroller" id="sections-pill-container">
+                    <!-- Pills injected dynamically -->
+                </div>
+            </div>
+
+            <!-- Main responsive layout split -->
+            <div class="catalog-layout">
+
+                <!-- Left Sidebar Category Index (Computer view) -->
+                <div class="desktop-category-sidebar">
+                    <h4>Categories</h4>
+                    <div id="desktop-category-links"></div>
+                </div>
+
+                <!-- Center items feed -->
+                <div class="catalog-items-feed">
+                    <div id="items-catalog-container"></div>
+
+                    <!-- SUGGESTIONS BOX CARD -->
+                    <div class="card suggestion-card" style="margin-top: 30px; background: linear-gradient(135deg, var(--bg-card) 0%, rgba(99, 102, 241, 0.04) 100%); border: 1px solid rgba(99, 102, 241, 0.15); border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-md); display: flex; flex-direction: column; gap: 12px; transition: all 0.3s ease;">
+                        <div style="display: flex; align-items: center; gap: 14px;">
+                            <div style="font-size: 30px; line-height: 1;">💝</div>
+                            <div>
+                                <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text-main);">We're cooking up new ideas!</h3>
+                                <p style="margin: 2px 0 0 0; font-size: 12.5px; color: var(--text-muted); line-height: 1.4;">Have a specific craving, recipe suggestion, or custom canteen request? Let us know!</p>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap;">
+                            <input type="text" id="general-suggestion-input" class="form-control" placeholder="I wish the canteen had cold-brew caramel lattes..." style="flex: 1; min-width: 220px; font-size: 13px; padding: 10px 14px; background: var(--bg-card); border-color: var(--border);">
+                            <button class="btn btn-success" style="width: auto; padding: 10px 24px; font-size: 13px; white-space: nowrap; font-weight: 600;" onclick="submitGeneralSuggestionFromInput()">Send Suggestion</button>
+                        </div>
+                    </div>
+
+                    <!-- PUBLIC REVIEW & RATING SUMMARY BOARD -->
+                    <div class="card" style="margin-top: 30px; display:flex; flex-direction:column; gap:16px;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:8px;">
+                            <h3 style="font-size:16px; font-weight:800;">What Students Are Saying</h3>
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <span style="color:var(--warning); font-size:18px; font-weight:800;"
+                                    id="summary-avg-stars">★ 0.0</span>
+                                <span style="color:var(--text-muted); font-size:11px;" id="summary-review-count">(0
+                                    reviews)</span>
+                            </div>
+                        </div>
+                        <div id="public-reviews-list"
+                            style="display:flex; flex-direction:column; gap:10px; max-height: 250px; overflow-y:auto;">
+                            <p style="color:var(--text-muted); font-size:12px; text-align:center;">No ratings posted
+                                yet.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Sidebar Checkout Cart (Computer view) -->
+                <div class="desktop-cart-sidebar" id="desktop-checkout-block">
+                    <h3 style="border-bottom: 1px solid var(--border); padding-bottom: 8px; font-size: 16px;">My Basket
+                    </h3>
+                    <div id="desktop-cart-items-list"
+                        style="display: flex; flex-direction: column; gap: 12px; max-height: 250px; overflow-y: auto;">
+                        <p style="color: var(--text-muted); font-size: 13px;">Cart is empty.</p>
+                    </div>
+
+                    <div
+                        style="border-top: 1px dashed var(--border); padding-top: 12px; display: flex; flex-direction: column; gap: 6px;">
+                        <div class="summary-row">
+                            <span>Subtotal</span>
+                            <span id="dk-subtotal">Rs. 0.00</span>
+                        </div>
+                        <div class="summary-row" id="dk-student-discount-row" style="display: none;">
+                            <span>Student Discount</span>
+                            <span id="dk-discount" style="color: var(--success);">-Rs. 0.00</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>GST (Item-specific)</span>
+                            <span id="dk-gst">Rs. 0.00</span>
+                        </div>
+                        <div class="summary-row summary-total" style="font-size: 15px;">
+                            <span>Grand Total</span>
+                            <span id="dk-payable" style="color: var(--primary);">Rs. 0.00</span>
+                        </div>
+                        <div class="discount-tag" id="dk-student-tag" style="display: none;">Student Category Discount
+                            Applied</div>
+                    </div>
+
+                    <!-- Unique Voucher Section -->
+                    <div id="desktop-voucher-container"
+                        style="margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; display: none;">
+                        <h4 style="font-size: 12px; font-weight: 700; margin-bottom: 6px;">Event Voucher / Code</h4>
+                        <div style="display:flex; gap:8px;">
+                            <input type="text" id="dk-voucher-input" class="form-control" placeholder="e.g. EVENT2026"
+                                style="padding: 6px 10px; font-size:12px;">
+                            <button class="btn"
+                                style="padding: 6px 12px; font-size:12px; width:auto; white-space:nowrap;"
+                                onclick="applyVoucherCode('dk')">Apply</button>
+                        </div>
+                        <p id="dk-voucher-msg" style="font-size:11px; margin-top:4px; font-weight:600; display:none;">
+                        </p>
+                    </div>
+
+                    <!-- Payment methods selector -->
+                    <div style="margin-top: 8px;">
+                        <h4 style="font-size: 12px; font-weight: 700; margin-bottom: 6px;">Payment Mode</h4>
+                        <div class="payment-options" style="grid-template-columns: 1fr 1fr;">
+                            <div class="pay-option-card active" id="dk-pay-opt-upi" onclick="selectPaymentMethod('UPI')"
+                                style="padding: 8px;">
+                                <span>UPI App</span>
+                            </div>
+                            <div class="pay-option-card" id="dk-pay-opt-cash" onclick="selectPaymentMethod('Cash')"
+                                style="padding: 8px;">
+                                <span>Counter Cash</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-success" id="dk-checkout-confirm-btn" onclick="submitFinalOrder()"
+                        disabled>Place Order & Pay</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 3: Payment Wait Simulation -->
+        <div id="screen-paywait" class="screen" style="display: none;">
+            <div class="card qr-box">
+                <h3 id="paywait-amount" style="font-size: 26px; color: var(--primary); font-weight: 800;">Rs. 0.00</h3>
+                <p style="font-size: 13px; color: var(--text-muted);">Scan QR to pay directly from your UPI banking
+                    application.</p>
+
+                <img id="paywait-qr" class="qr-code-img" src="" alt="UPI Scan QR">
+
+                <a id="paywait-deeplink" href="#" class="btn btn-outline" style="font-size: 13px;" target="_blank">
+                    🚀 Pay directly via UPI App
+                </a>
+
+                <div
+                    style="border-top: 1px solid var(--border); width: 100%; padding-top: 16px; margin-top: 8px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                    <div class="spinner"></div>
+                    <p style="font-size: 12px; font-weight: 600; color: var(--success);">Awaiting direct bank
+                        confirmation callback...</p>
+                    <p style="font-size: 10px; color: var(--text-muted);">Updating dynamically once bank confirms
+                        success (5s).</p>
+                    <button class="btn" style="margin-top:6px;" onclick="submitUpiPaymentVerification()">I have paid</button>
+                    <button class="btn btn-outline" style="margin-top:6px; border-color:var(--danger); color:var(--danger);" onclick="cancelUpiPaymentAndGoBack()">⬅️ Go Back / Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 4: In-App Structured Receipt -->
+        <div id="screen-receipt" class="screen" style="display: none;">
+            <div class="card" style="display: flex; flex-direction: column; gap: 16px;">
+                <div style="text-align: center;">
+                    <h3 style="color: var(--success); font-weight: 800; font-size: 22px;">Order Placed!</h3>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Status: <strong
+                            id="receipt-order-status" style="color: var(--primary);">Preparing</strong></p>
+                </div>
+
+                <!-- Structured digital receipt container -->
+                <div class="receipt-ticket" id="receipt-details-box"></div>
+
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn btn-success" onclick="downloadReceiptPDF()" style="flex: 1;">
+                        Download PDF
+                    </button>
+                    <button class="btn btn-outline" onclick="showCatalogScreen()" style="flex: 1;">
+                        Back to Menu
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 5: Ratings & Reviews -->
+        <div id="screen-rating" class="screen" style="display: none;">
+            <div class="card rating-box">
+                <div style="text-align: center; margin-bottom: 10px;">
+                    <h3 style="font-size: 20px; font-weight: 800;">Submit Star Review</h3>
+                    <p style="font-size: 12px; color: var(--text-muted);">Rate recipes and overall canteen services.</p>
+                </div>
+
+                <div id="rating-items-container" style="display: flex; flex-direction: column; gap: 16px;"></div>
+
+                <div class="form-group" style="margin-top: 10px;">
+                    <label>Suggestions / Feedback comments</label>
+                    <textarea id="feedback-text" class="form-control" rows="3"
+                        placeholder="How was the taste, size, or delivery speed..."></textarea>
+                </div>
+
+                <button class="btn" onclick="submitOrderRatings()">Submit Review</button>
+            </div>
+        </div>
+
+        <!-- PROFILE DRAWER (MODAL) -->
+        <div class="drawer-overlay" id="profile-drawer-overlay">
+            <div class="drawer">
+                <div class="drawer-header">
+                    <span class="drawer-title">Profile Info</span>
+                    <button class="drawer-close" onclick="closeProfileDrawer()">&times;</button>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 14px;" id="profile-drawer-details"></div>
+                <button class="btn btn-danger" onclick="logoutCustomer()">Log Out / Switch Account</button>
+            </div>
+        </div>
+
+        <!-- MOBILE CART SUMMARY DRAWER -->
+        <div class="drawer-overlay" id="cart-drawer-overlay">
+            <div class="drawer">
+                <div class="drawer-header">
+                    <span class="drawer-title">Checkout Basket</span>
+                    <button class="drawer-close" onclick="closeCartDrawer()">&times;</button>
+                </div>
+
+                <div id="checkout-items-list"
+                    style="display: flex; flex-direction: column; gap: 12px; max-height: 200px; overflow-y: auto;">
+                </div>
+
+                <div
+                    style="border-top: 1px solid var(--border); padding-top: 12px; display: flex; flex-direction: column; gap: 6px;">
+                    <div class="summary-row">
+                        <span>Items Subtotal</span>
+                        <span id="summary-subtotal">Rs. 0.00</span>
+                    </div>
+                    <div class="summary-row" id="student-discount-row" style="display: none;">
+                        <span>Student Discount</span>
+                        <span id="summary-discount" style="color: var(--success);">-Rs. 0.00</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>GST (Product-specific)</span>
+                        <span id="summary-gst">Rs. 0.00</span>
+                    </div>
+                    <div class="summary-row summary-total">
+                        <span>Grand Total</span>
+                        <span id="summary-payable" style="color: var(--primary);">Rs. 0.00</span>
+                    </div>
+                    <div class="discount-tag" id="student-tag" style="display: none;">Student Category Discount Applied
+                    </div>
+                </div>
+
+                <!-- Unique Voucher Input mobile -->
+                <div id="mobile-voucher-container"
+                    style="margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; display: none;">
+                    <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">Event Voucher / Code</h4>
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="mb-voucher-input" class="form-control" placeholder="e.g. EVENT2026"
+                            style="padding: 8px 12px; font-size:13px;">
+                        <button class="btn" style="padding: 8px 16px; font-size:13px; width:auto; white-space:nowrap;"
+                            onclick="applyVoucherCode('mb')">Apply</button>
+                    </div>
+                    <p id="mb-voucher-msg" style="font-size:11px; margin-top:4px; font-weight:600; display:none;"></p>
+                </div>
+
+                <div>
+                    <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 8px;">Select Payment Mode</h4>
+                    <div class="payment-options">
+                        <div class="pay-option-card active" id="pay-opt-upi" onclick="selectPaymentMethod('UPI')">
+                            <span>UPI (Auto Bank)</span>
+                        </div>
+                        <div class="pay-option-card" id="pay-opt-cash" onclick="selectPaymentMethod('Cash')">
+                            <span>Counter Cash</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-success" id="checkout-confirm-btn" onclick="submitFinalOrder()">Place Order &
+                    Pay</button>
+            </div>
+        </div>
+
+        <!-- Floating Cart Footer bar (Mobile) -->
+        <div class="cart-footer-bar" id="cart-floating-bar" style="display: none;">
+            <div class="cart-info">
+                <span class="cart-qty-total" id="cart-item-count">0 items</span>
+                <span class="cart-price-total" id="cart-price-sum">Rs. 0.00</span>
+            </div>
+            <button class="checkout-btn" onclick="openCartDrawer()">
+                <span>Continue</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="9 18 15 12 9 6" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- HIGH-IMPACT FLYER EVENT ANNOUNCEMENT OVERLAY -->
+        <div class="popup-overlay" id="announcement-popup-overlay">
+            <div class="popup-card">
+                <div class="popup-icon-wrapper">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                    </svg>
+                </div>
+                <h3 id="popup-ad-title">College Announcement</h3>
+
+                <img id="popup-ad-image" src="" alt="Event banner"
+                    style="width: 100%; max-height: 240px; object-fit: cover; border-radius: var(--radius-lg); border: 1px solid var(--border); display: none;">
+
+                <p id="popup-ad-desc">College announcements and happenings flyer details.</p>
+
+                <button class="btn" onclick="dismissAnnouncementPopup()">Got It, Show Canteen Menu</button>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div class="toast" id="system-toast">
+            <div class="toast-title" id="toast-title-text">Notification</div>
+            <div class="toast-body" id="toast-body-text">Details...</div>
+        </div>
+
+        <!-- PREMIUM DIALOG OVERLAY (Confirm/Alert) -->
+        <div class="popup-overlay" id="custom-dialog-overlay" style="display:none; z-index: 99999; align-items: center; justify-content: center; background: rgba(0,0,0,0.5);">
+            <div class="popup-card" style="max-width: 400px; padding: 24px; display: flex; flex-direction: column; gap: 16px; align-items: center; text-align: center; background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-lg);">
+                <div id="custom-dialog-icon" style="font-size: 38px;">ℹ️</div>
+                <h3 id="custom-dialog-title" style="margin: 0; font-size: 18px; font-weight: 800; color: var(--text-main);">Notification</h3>
+                <p id="custom-dialog-message" style="margin: 0; font-size: 13.5px; color: var(--text-muted); line-height: 1.5;">Details...</p>
+                <div style="display: flex; gap: 12px; width: 100%; margin-top: 8px;">
+                    <button class="btn btn-outline" id="custom-dialog-cancel-btn" style="flex: 1; padding: 10px; font-size: 13.5px; font-weight: 600;">Cancel</button>
+                    <button class="btn btn-success" id="custom-dialog-ok-btn" style="flex: 1; padding: 10px; font-size: 13.5px; font-weight: 600;">OK</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- GENERAL SUGGESTION FORM MODAL -->
+        <div class="popup-overlay" id="general-feedback-modal-overlay" style="display:none; z-index: 99999; align-items: center; justify-content: center; background: rgba(0,0,0,0.5);">
+            <div class="popup-card" style="max-width: 450px; padding: 24px; text-align: left; background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 16px;">
+                <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: var(--text-main);">Share Your Suggestion ✍️</h3>
+                <p style="margin: 0; font-size: 12.5px; color: var(--text-muted); line-height: 1.5;">We love cooking up new recipes! Write your taste recommendations, craving ideas, or requests below.</p>
+                <div class="form-group" style="margin: 0;">
+                    <label style="font-weight: 700; font-size: 12px; margin-bottom: 6px; display: block; color: var(--text-muted);">SUGGESTION DETAILS *</label>
+                    <textarea id="feedback-user-message" class="form-control" rows="4" placeholder="e.g. Please add cold-brew hazelnut coffee or chocolate lava cakes to the library bakes section!" style="padding: 10px; font-size: 13px;"></textarea>
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:12px; margin-top: 4px;">
+                    <button class="btn btn-outline" style="width:auto; padding: 8px 16px; font-size: 13px;" onclick="closeGeneralFeedbackModal()">Cancel</button>
+                    <button class="btn btn-success" style="width:auto; padding: 8px 16px; font-size: 13px;" onclick="submitGeneralSuggestion()">Send Suggestion</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- My Orders Drawer -->
+        <div class="drawer-overlay" id="my-orders-drawer-overlay">
+            <div class="drawer" id="my-orders-drawer">
+                <div class="drawer-header">
+                    <div class="drawer-title">My Orders</div>
+                    <button class="drawer-close" onclick="closeMyOrders()">✕</button>
+                </div>
+                <div id="my-orders-list" style="display:flex; flex-direction:column; gap:12px; padding-top:12px;">
+                    <div style="color:var(--text-muted);">Loading orders...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client-side logic scripts -->
+    <script>
+        const API_URL = (() => {
+            const cfg = window.APP_CONFIG && window.APP_CONFIG.API_URL;
+            if (cfg && !cfg.includes('localhost')) return cfg;
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                return cfg || 'http://localhost:5000/api';
+            }
+            return `${window.location.origin}/api`;
+        })();
+
+        const SOCKET_URL = (() => {
+            const cfg = window.APP_CONFIG && window.APP_CONFIG.SOCKET_URL;
+            if (cfg && !cfg.includes('localhost')) return cfg;
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                return cfg || 'http://localhost:5000';
+            }
+            return window.location.origin;
+        })();
+
+        let socket;
+        let customerSession = null;
+        let canteensList = [];
+        let selectedCanteenId = 1;
+        let adsList = [];
+        let menusList = [];
+        let selectedMenuId = null;
+        let catalogItems = [];
+
+        // Cart Structure: item_id -> { item_name, unit_price, quantity, image_url, menu_id, gst_percentage }
+        let cart = {};
+        let currentPaymentMethod = 'UPI';
+        let latestOrderResult = null;
+
+        // Voucher details
+        let appliedVoucher = null;
+
+        // Replace default alert() with in-app toast/popup to avoid browser alerts
+        function showToast(title, message, timeout = 4000) {
+            const t = document.getElementById('system-toast');
+            document.getElementById('toast-title-text').innerText = title || 'Notification';
+            document.getElementById('toast-body-text').innerText = message || '';
+            t.style.display = 'block';
+            clearTimeout(window._toastTimeout);
+            window._toastTimeout = setTimeout(() => { t.style.display = 'none'; }, timeout);
+        }
+
+        window.alert = function (msg) { showCustomerAlert('Notice', String(msg || '')); };
+
+        // My Orders drawer functions
+        function openMyOrders() {
+            document.getElementById('my-orders-drawer-overlay').style.display = 'flex';
+            loadMyOrders();
+        }
+
+        function closeMyOrders() { document.getElementById('my-orders-drawer-overlay').style.display = 'none'; }
+
+        async function loadMyOrders() {
+            const container = document.getElementById('my-orders-list');
+            if (!customerSession) {
+                container.innerHTML = '<div style="color:var(--text-muted);">Please verify your contact first.</div>';
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/orders/customer/${customerSession.customer_id}`);
+                const data = await res.json();
+                if (!data.success) {
+                    container.innerHTML = `<div style="color:var(--danger);">${data.error || 'Failed loading orders'}</div>`;
+                    return;
+                }
+
+                if (data.orders.length === 0) {
+                    container.innerHTML = '<div style="color:var(--text-muted);">No recent orders.</div>';
+                    return;
+                }
+
+                container.innerHTML = data.orders.map(o => {
+                    const status = o.order_status;
+                    const payType = o.payment_type || (o.transaction && o.transaction.payment_type) || 'UPI';
+                    const color = payType === 'Cash' ? 'var(--warning)' : 'var(--primary)';
+                    return `
+                        <div class="card" style="border-left:4px solid ${color};">
+                            <div style="display:flex; justify-content:space-between; gap:8px; align-items:center;">
+                                <div><strong>#${o.order_id}</strong> — ${o.created_at}</div>
+                                <div style="font-weight:800; color:${color};">${payType}</div>
+                            </div>
+                            <div style="margin-top:8px; color:var(--text-muted);">Status: ${status}</div>
+                            <div style="margin-top:8px; display:flex; gap:8px;">
+                                <button class="btn-outline" onclick="viewOrderDetails(${o.order_id})">View</button>
+                                ${payType === 'UPI' ? `<button class="btn" onclick="confirmUpiPaid(${o.order_id})">I paid (UPI)</button>` : ''}
+                            </div>
+                        </div>`;
+                }).join('');
+            } catch (e) {
+                container.innerHTML = `<div style="color:var(--danger);">${e.message}</div>`;
+            }
+        }
+
+        async function confirmUpiPaid(orderId) {
+            const confirmed = await showCustomerConfirm('Confirm Payment Settlement', 'Have you completed the UPI payment? Click OK to notify the accountant.', '💳');
+            if (!confirmed) return;
+            try {
+                const res = await fetch(`${API_URL}/payments/verify`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order_id: orderId, customer_id: customerSession.customer_id })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('UPI Notice', 'Your settlement request was submitted. Accountant will verify shortly.');
+                    loadMyOrders();
+                } else showToast('Error', data.error || 'Failed to submit settlement request');
+            } catch (e) { showToast('Error', e.message); }
+        }
+
+        function viewOrderDetails(orderId) {
+            // reuse existing receipt display if available
+            loadInAppReceipt(orderId);
+            closeMyOrders();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSavedSession();
+            setupSocketConnection();
+            loadCanteenSelectorList();
+            loadPublicFeedbacks();
+            // Register service worker for push notifications
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js').then(reg => {
+                    console.log('Service Worker registered', reg);
+                }).catch(err => console.warn('SW register failed', err));
+            }
+        });
+
+        // Small helper toggle for enable push
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding)
+                .replace(/\-/g, '+')
+                .replace(/_/g, '/');
+
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
+        async function enablePushFlow() {
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    alert('Notification permission denied. Please allow notifications in site settings to use push notifications.');
+                    return;
+                }
+
+                let reg = await navigator.serviceWorker.ready;
+
+                // Fetch VAPID Public Key from backend
+                const keyRes = await fetch(`${API_URL}/push/vapid-public-key`);
+                const keyData = await keyRes.json();
+                if (!keyData.success) {
+                    alert('Could not fetch push server configuration: ' + keyData.error);
+                    return;
+                }
+
+                const convertedVapidKey = urlBase64ToUint8Array(keyData.publicKey);
+
+                // Subscribe to push manager
+                const subscription = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: convertedVapidKey
+                });
+
+                // Send Subscription to backend
+                const subscriptionJsonString = JSON.stringify(subscription);
+                await registerDeviceToken(subscriptionJsonString, 'web');
+
+                document.getElementById('enable-push-btn').innerText = '🔔 Push Enabled';
+                alert('🎉 Notifications enabled successfully on this device!');
+            } catch (err) {
+                console.error("Web push activation failed:", err);
+                alert('Failed to enable push: ' + err.message);
+            }
+        }
+
+        function setupSocketConnection() {
+            socket = io(SOCKET_URL);
+
+            socket.on('connect', () => {
+                if (customerSession) {
+                    socket.emit('JOIN_CUSTOMER', customerSession.customer_id);
+                }
+            });
+
+            socket.on('ORDER_UPDATED', (data) => {
+                showToast("Order Update", data.message || `Order #${data.orderId} status changed to ${data.status}`);
+
+                if (data.status === 'Preparing' && latestOrderResult && data.orderId == latestOrderResult.order_id) {
+                    loadInAppReceipt(latestOrderResult.order_id);
+                }
+
+                if (data.status === 'Ready' && latestOrderResult && data.orderId == latestOrderResult.order_id) {
+                    showRatingScreen(latestOrderResult.order_id);
+                }
+            });
+
+            // Item-level and general notifications
+            socket.on('ITEM_PREPARED', (data) => {
+                // Big visible notification + native notification
+                showBigNotification(data.title || 'Item Prepared', data.message || 'An item is ready', data);
+            });
+
+            socket.on('NOTIFICATION', (data) => {
+                showBigNotification(data.title || 'Notification', data.message || 'You have a new message', data);
+            });
+        }
+
+        // Show a prominent on-page notification and attempt native Notification
+        function showBigNotification(title, message, data) {
+            // Native notification
+            if (window.Notification && Notification.permission === 'granted') {
+                try { new Notification(title, { body: message, data }); } catch (e) { }
+            } else if (window.Notification && Notification.permission !== 'denied') {
+                Notification.requestPermission().then(p => { if (p === 'granted') { try { new Notification(title, { body: message, data }); } catch (e) { } } });
+            }
+
+            // Big overlay banner
+            let overlay = document.getElementById('big-notif-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'big-notif-overlay';
+                overlay.style.position = 'fixed';
+                overlay.style.left = '50%';
+                overlay.style.top = '10%';
+                overlay.style.transform = 'translateX(-50%)';
+                overlay.style.zIndex = 99999;
+                overlay.style.maxWidth = '96%';
+                overlay.style.background = 'linear-gradient(90deg,#0ea5e9,#06b6d4)';
+                overlay.style.color = '#fff';
+                overlay.style.padding = '18px 22px';
+                overlay.style.borderRadius = '10px';
+                overlay.style.boxShadow = '0 12px 30px rgba(2,6,23,0.4)';
+                overlay.style.fontSize = '18px';
+                overlay.style.fontWeight = 800;
+                overlay.style.display = 'flex';
+                overlay.style.alignItems = 'center';
+                overlay.style.gap = '12px';
+                overlay.innerHTML = `<div id="big-notif-content"><div style="font-size:20px; font-weight:900;">${title}</div><div style="font-size:14px; font-weight:600; opacity:0.95;">${message}</div></div><div style="margin-left:auto"><button id="big-notif-close" style="background:transparent; border:0; color:#fff; font-size:22px;">✕</button></div>`;
+                document.body.appendChild(overlay);
+                document.getElementById('big-notif-close').addEventListener('click', () => { overlay.remove(); });
+            } else {
+                overlay.querySelector('#big-notif-content').innerHTML = `<div style="font-size:20px; font-weight:900;">${title}</div><div style="font-size:14px; font-weight:600; opacity:0.95;">${message}</div>`;
+                overlay.style.display = 'flex';
+            }
+
+            // play short chime
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.type = 'sine'; o.frequency.value = 880;
+                o.connect(g); g.connect(ctx.destination);
+                o.start(); g.gain.setValueAtTime(0.0001, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5); o.stop(ctx.currentTime + 0.6);
+            } catch (e) { }
+
+            // Auto-hide after 8 seconds
+            setTimeout(() => { const el = document.getElementById('big-notif-overlay'); if (el) el.remove(); }, 8000);
+        }
+
+        // Register a device token (FCM token from mobile or web) with server
+        async function registerDeviceToken(token, platform = 'web') {
+            try {
+                const res = await fetch('/api/push/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customer_id: customerSession ? customerSession.customer_id : null, token, platform }) });
+                const data = await res.json();
+                if (data.success) console.log('Device token registered'); else console.warn('Register token failed', data);
+            } catch (e) { console.error('Register token error', e); }
+        }
+
+        function changeTheme(themeName) {
+            document.documentElement.setAttribute('data-theme', themeName);
+            localStorage.setItem('canteen_theme', themeName);
+        }
+
+        function loadSavedSession() {
+            const savedTheme = localStorage.getItem('canteen_theme') || 'light';
+            document.getElementById('themeSelector').value = savedTheme;
+            changeTheme(savedTheme);
+
+            const savedCanteen = localStorage.getItem('canteen_location_id');
+            if (savedCanteen) selectedCanteenId = parseInt(savedCanteen);
+
+            const savedCust = localStorage.getItem('canteen_customer');
+            if (savedCust) {
+                try {
+                    customerSession = JSON.parse(savedCust);
+                    fetch(`${API_URL}/customers/${customerSession.customer_id}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                customerSession = data.customer;
+                                localStorage.setItem('canteen_customer', JSON.stringify(customerSession));
+                                showCatalogScreen();
+                            } else {
+                                logoutCustomer();
+                            }
+                        })
+                        .catch(() => showCatalogScreen());
+                } catch (e) {
+                    logoutCustomer();
+                }
+            }
+        }
+
+        async function verifyOrRegisterCustomer() {
+            const phone = document.getElementById('input-phone').value.trim();
+            const email = document.getElementById('input-email').value.trim();
+            const name = document.getElementById('input-name').value.trim();
+            const category = document.getElementById('input-category').value;
+
+            if (!phone || !email || phone.length !== 10 || !email.includes('@')) {
+                alert("Please enter a valid 10-digit phone number and email.");
+                return;
+            }
+
+            const isRegistering = document.getElementById('new-profile-fields').style.display === 'block';
+            if (isRegistering && !name) {
+                alert("Please enter your name.");
+                return;
+            }
+
+            try {
+                const payload = { phone, email };
+                if (isRegistering) {
+                    payload.full_name = name;
+                    payload.customer_category = category;
+                }
+
+                const res = await fetch(`${API_URL}/customers/verify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    customerSession = data.customer;
+                    localStorage.setItem('canteen_customer', JSON.stringify(customerSession));
+
+                    if (socket) socket.emit('JOIN_CUSTOMER', customerSession.customer_id);
+
+                    showCatalogScreen();
+                } else if (data.prompt_details) {
+                    document.getElementById('new-profile-fields').style.display = 'block';
+                } else {
+                    alert(data.error || "Verification failed");
+                }
+            } catch (err) {
+                alert("Connection failed: " + err.message);
+            }
+        }
+
+        function hideAllScreens() {
+            document.getElementById('screen-verify').style.display = 'none';
+            document.getElementById('screen-catalog').style.display = 'none';
+            document.getElementById('screen-paywait').style.display = 'none';
+            document.getElementById('screen-receipt').style.display = 'none';
+            document.getElementById('screen-rating').style.display = 'none';
+            document.getElementById('cart-floating-bar').style.display = 'none';
+        }
+
+        function showCatalogScreen() {
+            hideAllScreens();
+            document.getElementById('screen-catalog').style.display = 'flex';
+            updateCartFloatingBar();
+            loadAds();
+            loadMenus();
+            checkVoucherVisibility();
+        }
+
+        async function checkVoucherVisibility() {
+            try {
+                const res = await fetch(`${API_URL}/orders/vouchers/active-exists`);
+                const data = await res.json();
+                if (data.success) {
+                    const hasVouchers = data.exists;
+                    const dkContainer = document.getElementById('desktop-voucher-container');
+                    const mbContainer = document.getElementById('mobile-voucher-container');
+                    if (hasVouchers) {
+                        if (dkContainer) dkContainer.style.display = 'block';
+                        if (mbContainer) mbContainer.style.display = 'block';
+                    } else {
+                        if (dkContainer) dkContainer.style.display = 'none';
+                        if (mbContainer) mbContainer.style.display = 'none';
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to check vouchers visibility:", err);
+            }
+        }
+
+        function logoutCustomer() {
+            customerSession = null;
+            localStorage.removeItem('canteen_customer');
+            hideAllScreens();
+            document.getElementById('new-profile-fields').style.display = 'none';
+            document.getElementById('screen-verify').style.display = 'flex';
+            document.getElementById('input-phone').value = '';
+            document.getElementById('input-email').value = '';
+            document.getElementById('input-name').value = '';
+            closeProfileDrawer();
+        }
+
+        function openProfileEdit() {
+            if (!customerSession) return;
+            const detailsBox = document.getElementById('profile-drawer-details');
+            detailsBox.innerHTML = `
+                <p><strong>Name:</strong> ${customerSession.full_name}</p>
+                <p><strong>Phone:</strong> ${customerSession.phone}</p>
+                <p><strong>Email:</strong> ${customerSession.email}</p>
+                <p><strong>Category:</strong> ${customerSession.customer_category}</p>
+            `;
+            document.getElementById('profile-drawer-overlay').style.display = 'flex';
+        }
+
+        function closeProfileDrawer() {
+            document.getElementById('profile-drawer-overlay').style.display = 'none';
+        }
+
+        // CANTEEN SELECTION ENGINE
+        async function loadCanteenSelectorList() {
+            try {
+                const res = await fetch(`${API_URL}/canteens/list`);
+                const data = await res.json();
+                if (data.success) {
+                    canteensList = data.canteens;
+
+                    // If no selectedCanteenId is set yet, default to first active canteen
+                    if (!selectedCanteenId && canteensList.length > 0) {
+                        const activeCanteen = canteensList.find(c => c.is_active === 1) || canteensList[0];
+                        selectedCanteenId = activeCanteen.canteen_id;
+                        localStorage.setItem('canteen_location_id', selectedCanteenId);
+                    }
+
+                    renderCanteenButtons();
+                }
+            } catch (e) {
+                console.error("Failed to load canteens list:", e);
+            }
+        }
+
+        function renderCanteenButtons() {
+            const container = document.getElementById('canteens-buttons-container');
+            if (!container) return;
+
+            container.innerHTML = canteensList.map(c => `
+                <div class="canteen-pill ${selectedCanteenId === c.canteen_id ? 'active' : ''}" onclick="switchCanteenLocation(${c.canteen_id})">
+                    <span>📍 ${c.canteen_name}</span>
+                </div>
+            `).join('');
+        }
+
+        function switchCanteenLocation(canteenId) {
+            selectedCanteenId = parseInt(canteenId);
+            localStorage.setItem('canteen_location_id', selectedCanteenId);
+
+            // Clear current cart since locations carry completely different products
+            cart = {};
+            appliedVoucher = null;
+            resetVoucherUI();
+            updateCartFloatingBar();
+            renderDesktopCart();
+
+            renderCanteenButtons();
+
+            // Reload menu sections and products
+            selectedMenuId = null;
+            loadMenus();
+        }
+
+        // Ratings feedback averages summary board
+        async function loadPublicFeedbacks() {
+            try {
+                const res = await fetch(`${API_URL}/feedback/summary`);
+                const data = await res.json();
+
+                if (data.success) {
+                    document.getElementById('summary-avg-stars').innerText = `★ ${data.avgRating.toFixed(1)}`;
+                    document.getElementById('summary-review-count').innerText = `(${data.ratingCount} reviews)`;
+
+                    const reviewsBox = document.getElementById('public-reviews-list');
+                    if (data.reviews.length === 0) {
+                        reviewsBox.innerHTML = '<p style="color:var(--text-muted); font-size:12px; text-align:center;">No written reviews submitted yet.</p>';
+                        return;
+                    }
+
+                    reviewsBox.innerHTML = data.reviews.map(r => `
+                        <div class="feedback-bubble">
+                            <div class="feedback-bubble-meta">
+                                <span>${r.customer_name}</span>
+                                <span style="color:var(--warning); font-size:12px;">${'★'.repeat(r.rating)}</span>
+                            </div>
+                            <p style="font-size:12.5px; line-height:1.4; color:var(--text-main); font-style:italic;">"${r.review}"</p>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // Voucher Applying System
+        async function applyVoucherCode(prefix) {
+            const inputVal = document.getElementById(`${prefix}-voucher-input`).value.trim();
+            const msgEl = document.getElementById(`${prefix}-voucher-msg`);
+
+            if (!inputVal) {
+                msgEl.style.display = 'none';
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/orders/validate-voucher`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: inputVal, canteen_id: selectedCanteenId })
+                });
+                const data = await res.json();
+
+                if (data.success && data.voucher) {
+                    const matched = data.voucher;
+                    appliedVoucher = matched;
+                    let text = `✓ Applied! `;
+                    if (matched.discount_type === 'Percentage') text += `${matched.discount_value}% OFF`;
+                    else if (matched.discount_type === 'Fixed') text += `Rs.${matched.discount_value} OFF`;
+                    else if (matched.discount_type === 'FreeMeal') text += `FREE MEAL CLEARANCE!`;
+
+                    msgEl.innerText = text;
+                    msgEl.style.color = "var(--success)";
+                    msgEl.style.display = "block";
+
+                    // Sync input fields
+                    document.getElementById('dk-voucher-input').value = matched.voucher_code;
+                    document.getElementById('mb-voucher-input').value = matched.voucher_code;
+                    document.getElementById('dk-voucher-msg').innerText = text;
+                    document.getElementById('dk-voucher-msg').style.display = 'block';
+                    document.getElementById('dk-voucher-msg').style.color = 'var(--success)';
+                    document.getElementById('mb-voucher-msg').innerText = text;
+                    document.getElementById('mb-voucher-msg').style.display = 'block';
+                    document.getElementById('mb-voucher-msg').style.color = 'var(--success)';
+                } else {
+                    msgEl.innerText = `❌ ${data.error || "Invalid voucher code."}`;
+                    msgEl.style.color = "var(--danger)";
+                    msgEl.style.display = "block";
+                    appliedVoucher = null;
+
+                    // Clear messages on the other view
+                    const otherPrefix = prefix === 'dk' ? 'mb' : 'dk';
+                    const otherMsgEl = document.getElementById(`${otherPrefix}-voucher-msg`);
+                    otherMsgEl.style.display = 'none';
+                }
+
+                // Recalculate
+                renderDesktopCart();
+                if (document.getElementById('cart-drawer-overlay').style.display === 'flex') {
+                    renderCheckoutDrawer();
+                }
+            } catch (err) {
+                console.error("Voucher validation failed:", err);
+                msgEl.innerText = "❌ Validation service error.";
+                msgEl.style.color = "var(--danger)";
+                msgEl.style.display = "block";
+                appliedVoucher = null;
+            }
+        }
+
+        function resetVoucherUI() {
+            document.getElementById('dk-voucher-input').value = '';
+            document.getElementById('mb-voucher-input').value = '';
+            document.getElementById('dk-voucher-msg').style.display = 'none';
+            document.getElementById('mb-voucher-msg').style.display = 'none';
+        }
+
+        // Load Ads
+        async function loadAds() {
+            try {
+                const res = await fetch(`${API_URL}/ads/list`);
+                const data = await res.json();
+                if (data.success) {
+                    adsList = data.ads;
+
+                    const promos = adsList.filter(a => a.ad_type === 'Promo');
+                    const announcements = adsList.filter(a => a.ad_type === 'Announcement');
+
+                    renderPromoCarousel(promos);
+                    triggerAnnouncementPopup(announcements);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        let adTimer = null;
+        function renderPromoCarousel(promos) {
+            const container = document.getElementById('ad-carousel-container');
+            if (promos.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+            container.style.display = 'block';
+
+            let slidesHtml = '';
+            let dotsHtml = '';
+
+            promos.forEach((ad, idx) => {
+                slidesHtml += `
+                    <div class="ad-slide ${idx === 0 ? 'active' : ''}" style="background-image: url('${ad.image_url}')">
+                        <div class="ad-content">
+                            <div class="ad-title">${ad.title}</div>
+                            <div class="ad-desc">${ad.description}</div>
+                            ${ad.discount_code ? `<span class="discount-tag" style="background-color: var(--primary); color: #fff; margin-top: 4px;">Code: ${ad.discount_code}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+                dotsHtml += `<span class="ad-dot ${idx === 0 ? 'active' : ''}" onclick="setAdSlide(${idx})"></span>`;
+            });
+
+            container.innerHTML = slidesHtml + `<div class="ad-dots">${dotsHtml}</div>`;
+
+            if (adTimer) clearInterval(adTimer);
+            let currentAdIdx = 0;
+            adTimer = setInterval(() => {
+                currentAdIdx = (currentAdIdx + 1) % promos.length;
+                setAdSlide(currentAdIdx);
+            }, 5000);
+        }
+
+        function setAdSlide(idx) {
+            const slides = document.querySelectorAll('.ad-slide');
+            const dots = document.querySelectorAll('.ad-dot');
+            if (slides.length === 0) return;
+
+            slides.forEach(s => s.classList.remove('active'));
+            dots.forEach(d => d.classList.remove('active'));
+
+            slides[idx].classList.add('active');
+            dots[idx].classList.add('active');
+        }
+
+        // TRIGGER EVENT HIGHLIGHT MODAL OVERLAY (Big event size)
+        function triggerAnnouncementPopup(announcements) {
+            if (announcements.length === 0) return;
+            const latest = announcements[0];
+            const sessionViewed = sessionStorage.getItem(`viewed_announcement_${latest.ad_id}`);
+
+            if (!sessionViewed) {
+                document.getElementById('popup-ad-title').innerText = latest.title;
+                document.getElementById('popup-ad-desc').innerText = latest.description;
+
+                const img = document.getElementById('popup-ad-image');
+                if (latest.image_url) {
+                    img.src = latest.image_url;
+                    img.style.display = 'block';
+                } else {
+                    img.style.display = 'none';
+                }
+
+                document.getElementById('announcement-popup-overlay').style.display = 'flex';
+                sessionStorage.setItem(`viewed_announcement_${latest.ad_id}`, 'true');
+            }
+        }
+
+        function dismissAnnouncementPopup() {
+            document.getElementById('announcement-popup-overlay').style.display = 'none';
+        }
+
+        // Load Canteen sections
+        async function loadMenus() {
+            try {
+                // Fetch dynamic sections list filtered by canteen_id switcher
+                const res = await fetch(`${API_URL}/menu/list?canteen_id=${selectedCanteenId}`);
+                const data = await res.json();
+                if (data.success) {
+                    menusList = data.menus;
+                    renderMenusPills();
+                    if (menusList.length > 0) {
+                        // Default select first section
+                        selectedMenuId = menusList[0].menu_id;
+                        renderMenusPills();
+                        loadCatalogItems(selectedMenuId);
+                    } else {
+                        document.getElementById('items-catalog-container').innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px 0;">No menu sections configured for this canteen location yet.</p>';
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function renderMenusPills() {
+            const container = document.getElementById('sections-pill-container');
+            container.innerHTML = menusList.map(menu => `
+                <div class="section-pill ${selectedMenuId === menu.menu_id ? 'active' : ''}" onclick="selectMenuSection(${menu.menu_id})">
+                    <span>${menu.menu_name}</span>
+                </div>
+            `).join('');
+        }
+
+        function selectMenuSection(menuId) {
+            selectedMenuId = menuId;
+            renderMenusPills();
+            loadCatalogItems(menuId);
+        }
+
+        // Load items for a section
+        async function loadCatalogItems(menuId) {
+            const container = document.getElementById('items-catalog-container');
+            container.innerHTML = '<p style="text-align: center; color: var(--text-muted);">Loading catalog items...</p>';
+
+            try {
+                const res = await fetch(`${API_URL}/menu/items/${menuId}`);
+                const data = await res.json();
+                if (data.success) {
+                    catalogItems = data.items;
+                    renderCatalog();
+                    renderDesktopCategorySidebar();
+                }
+            } catch (err) {
+                container.innerHTML = `<p style="text-align: center; color: var(--danger);">Failed to load items.</p>`;
+            }
+        }
+
+        function renderCatalog() {
+            const container = document.getElementById('items-catalog-container');
+            if (catalogItems.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px 0;">No items available in this section.</p>';
+                return;
+            }
+
+            const grouped = {};
+            catalogItems.forEach(item => {
+                if (!grouped[item.category_name]) grouped[item.category_name] = [];
+                grouped[item.category_name].push(item);
+            });
+
+            let html = '';
+            for (const category in grouped) {
+                const safeCatId = `cat-${category.replace(/\s+/g, '-').toLowerCase()}`;
+                html += `
+                    <div class="category-group" id="${safeCatId}">
+                        <div class="category-title">${category}</div>
+                        <div class="category-items-grid">
+                `;
+
+                grouped[category].forEach(item => {
+                    const cartQty = cart[item.item_id] ? cart[item.item_id].quantity : 0;
+                    const hasDiscount = item.discount_type !== 'None' && item.discount_value > 0;
+
+                    html += `
+                        <div class="food-item-card">
+                            <img class="item-thumb" src="${item.image_url}" alt="${item.item_name}" onclick="openItemFeedback(${item.item_id})" style="cursor:pointer">
+                            <div class="item-details">
+                                <div class="item-meta">
+                                    <div class="item-name-row">
+                                        <span class="item-name">${item.item_name}</span>
+                                        ${item.is_healthy ? '<span class="healthy-badge">Healthy</span>' : ''}
+                                    </div>
+                                    <span class="item-ingredients">${item.ingredients}</span>
+                                    <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+                                        <div style="display:flex; align-items:center; gap:6px;">
+                                            <div style="color:var(--warning); font-size:18px;">★</div>
+                                            <div style="font-weight:700; color:var(--primary);">${parseFloat(item.avg_rating || 0).toFixed(1)}</div>
+                                            <div style="color:var(--text-muted); font-size:13px;">(${item.rating_count || 0})</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="item-pricing-action">
+                                    <div class="price-box">
+                                        ${hasDiscount ? `<span class="original-price">Rs.${item.price}</span>` : ''}
+                                        <span class="discount-price">Rs.${item.discounted_price}</span>
+                                        <span style="font-size:10px; color:var(--text-muted); background:var(--bg-primary); padding:1px 4px; border-radius:3px;">GST: ${item.gst_percentage}%</span>
+                                    </div>
+                                    
+                                    ${cartQty > 0 ? `
+                                        <div class="item-qty-control">
+                                            <button class="qty-adjust" onclick="adjustCartQuantity(${item.item_id}, -1)">&minus;</button>
+                                            <span class="qty-val">${cartQty}</span>
+                                            <button class="qty-adjust" onclick="adjustCartQuantity(${item.item_id}, 1)">&plus;</button>
+                                        </div>
+                                    ` : `
+                                        <button class="item-action-btn" onclick="addToCart(${item.item_id}, '${item.item_name}', ${item.discounted_price}, '${item.image_url}', ${item.gst_percentage})">&plus;</button>
+                                    `}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // PREMIUM DIALOG CONTROLLERS (NO BROWSER ALERTS/CONFIRMS)
+        let customDialogResolve = null;
+
+        function showCustomerConfirm(title, message, icon = '❓') {
+            return new Promise((resolve) => {
+                document.getElementById('custom-dialog-title').innerText = title;
+                document.getElementById('custom-dialog-message').innerText = message;
+                document.getElementById('custom-dialog-icon').innerText = icon;
+                
+                const cancelBtn = document.getElementById('custom-dialog-cancel-btn');
+                cancelBtn.style.display = 'block';
+                
+                const overlay = document.getElementById('custom-dialog-overlay');
+                overlay.style.display = 'flex';
+                
+                customDialogResolve = resolve;
+            });
+        }
+
+        function showCustomerAlert(title, message, icon = 'ℹ️') {
+            return new Promise((resolve) => {
+                document.getElementById('custom-dialog-title').innerText = title;
+                document.getElementById('custom-dialog-message').innerText = message;
+                document.getElementById('custom-dialog-icon').innerText = icon;
+                
+                const cancelBtn = document.getElementById('custom-dialog-cancel-btn');
+                cancelBtn.style.display = 'none';
+                
+                const overlay = document.getElementById('custom-dialog-overlay');
+                overlay.style.display = 'flex';
+                
+                customDialogResolve = resolve;
+            });
+        }
+
+        // Attach event listeners for custom dialog buttons
+        window.addEventListener('DOMContentLoaded', () => {
+            const okBtn = document.getElementById('custom-dialog-ok-btn');
+            const cancelBtn = document.getElementById('custom-dialog-cancel-btn');
+            const overlay = document.getElementById('custom-dialog-overlay');
+
+            if (okBtn) {
+                okBtn.addEventListener('click', () => {
+                    overlay.style.display = 'none';
+                    if (customDialogResolve) {
+                        const res = customDialogResolve;
+                        customDialogResolve = null;
+                        res(true);
+                    }
+                });
+            }
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => {
+                    overlay.style.display = 'none';
+                    if (customDialogResolve) {
+                        const res = customDialogResolve;
+                        customDialogResolve = null;
+                        res(false);
+                    }
+                });
+            }
+        });
+
+        // GENERAL SUGGESTIONS & FEEDBACK FLOWS
+        function openGeneralFeedbackModal() {
+            if (!customerSession) {
+                alert('Please verify your contact details first so we can link your suggestions!');
+                return;
+            }
+            document.getElementById('feedback-user-message').value = '';
+            document.getElementById('general-feedback-modal-overlay').style.display = 'flex';
+        }
+
+        function closeGeneralFeedbackModal() {
+            document.getElementById('general-feedback-modal-overlay').style.display = 'none';
+        }
+
+        async function submitGeneralSuggestion() {
+            const message = document.getElementById('feedback-user-message').value.trim();
+            if (!message) {
+                alert('Please type your suggestion first! ✍️');
+                return;
+            }
+            await sendSuggestionToServer(message);
+            closeGeneralFeedbackModal();
+        }
+
+        async function submitGeneralSuggestionFromInput() {
+            const message = document.getElementById('general-suggestion-input').value.trim();
+            if (!message) {
+                alert('Please type your suggestion first! ✍️');
+                return;
+            }
+            if (!customerSession) {
+                alert('Please verify your contact details first so we can link your suggestions!');
+                return;
+            }
+            await sendSuggestionToServer(message);
+            document.getElementById('general-suggestion-input').value = '';
+        }
+
+        async function sendSuggestionToServer(message) {
+            try {
+                const res = await fetch(`${API_URL}/feedback/general`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        customer_id: customerSession.customer_id,
+                        message: message
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Craving Recorded! 🎉', 'Your craving/suggestion was successfully sent to the canteen chef & managers! We love cooking up your suggestions.');
+                } else {
+                    alert('Could not submit suggestion: ' + data.error);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error submitting suggestion: ' + err.message);
+            }
+        }
+
+        // UPI WAITING BACK & CONFIRMATION FIX
+        function cancelUpiPaymentAndGoBack() {
+            showCatalogScreen();
+            showToast('Payment Cancelled', 'You can now change your payment mode or edit your basket.');
+        }
+
+        async function submitUpiPaymentVerification() {
+            if (!latestOrderResult || !latestOrderResult.order_id) {
+                alert('No active UPI order found.');
+                return;
+            }
+            try {
+                const res = await fetch(`${API_URL}/payments/verify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        order_id: latestOrderResult.order_id,
+                        customer_id: customerSession.customer_id
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('UPI Notice', 'Your settlement request was submitted. Accountant will verify shortly.');
+                    showCatalogScreen();
+                    loadMyOrders();
+                } else {
+                    alert(data.error || 'Failed to submit settlement request');
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        // Rating modal functions
+        function openRatingModal(itemId, menuId, preselectStar) {
+            // create modal overlay if not existing
+            let ov = document.getElementById('item-rating-overlay');
+            if (!ov) {
+                const html = `
+                <div class="popup-overlay" id="item-rating-overlay">
+                    <div class="popup-card" style="max-width:420px;">
+                        <h3 id="rating-title">Rate Item</h3>
+                        <div id="rating-stars" style="display:flex; gap:8px; justify-content:center; font-size:28px;"></div>
+                        <textarea id="rating-review" placeholder="Optional review" style="width:100%; min-height:80px; padding:8px; border-radius:8px; border:1px solid var(--border); margin-top:12px;"></textarea>
+                        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+                            <button class="btn-outline" onclick="closeRatingModal()">Cancel</button>
+                            <button class="btn" id="rating-submit-btn">Submit</button>
+                        </div>
+                    </div>
+                </div>`;
+                document.body.insertAdjacentHTML('beforeend', html);
+            }
+            ov = document.getElementById('item-rating-overlay');
+            ov.style.display = 'flex';
+            const starsEl = document.getElementById('rating-stars');
+            starsEl.innerHTML = '';
+            let selected = preselectStar || 5;
+            function renderStars() {
+                starsEl.innerHTML = [1, 2, 3, 4, 5].map(n => `<button style="background:none;border:none;font-size:28px;cursor:pointer;" onclick="(function(){window._selectedRating=${n};renderStars();})()">${n <= selected ? '★' : '☆'}</button>`).join('');
+            }
+            window._selectedRating = preselectStar || 5;
+            window.renderStars = renderStars;
+            renderStars();
+            document.getElementById('rating-submit-btn').onclick = async () => {
+                const rating = window._selectedRating || 5;
+                const review = document.getElementById('rating-review').value.trim();
+                const payload = { customer_id: (customerSession && customerSession.customer_id) || null, order_id: null, ratings: [{ item_id: itemId, menu_id: menuId, rating, review }] };
+                if (!payload.customer_id) {
+                    const confirmed = await showCustomerConfirm('Verify Contact Details', 'Please verify your contact details to submit a rating. Go to verification now?', '👤');
+                    if (!confirmed) return closeRatingModal();
+                    // redirect customer to verification screen
+                    document.getElementById('screen-verify').style.display = 'block';
+                    document.getElementById('screen-catalog').style.display = 'none';
+                    closeRatingModal();
+                    return;
+                }
+                try {
+                    const res = await fetch(`${API_URL}/feedback/rate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast('Thanks', 'Your rating was submitted.');
+                        closeRatingModal();
+                    } else {
+                        showToast('Error', data.error || 'Failed to submit rating');
+                    }
+                } catch (e) { showToast('Error', e.message); }
+            };
+        }
+
+        function closeRatingModal() {
+            const ov = document.getElementById('item-rating-overlay');
+            if (ov) ov.style.display = 'none';
+        }
+
+        // Open item feedback modal (show all ratings & reviews for an item)
+        async function openItemFeedback(itemId) {
+            let ov = document.getElementById('item-feedback-overlay');
+            if (!ov) {
+                const html = `
+                        <div class="popup-overlay" id="item-feedback-overlay">
+                            <div class="popup-card" style="max-width:700px; width:90%;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <h3 id="item-feedback-title">Item Feedback</h3>
+                                    <button class="btn-outline" onclick="closeItemFeedback()">Close</button>
+                                </div>
+                                <div id="item-feedback-content" style="margin-top:12px; max-height:60vh; overflow:auto;"></div>
+                            </div>
+                        </div>`;
+                document.body.insertAdjacentHTML('beforeend', html);
+            }
+            ov = document.getElementById('item-feedback-overlay');
+            const content = document.getElementById('item-feedback-content');
+            ov.style.display = 'flex';
+            content.innerHTML = '<p style="text-align:center; color:var(--text-muted);">Loading feedback...</p>';
+            try {
+                const res = await fetch(`${API_URL}/items/ratings/${itemId}`);
+                const data = await res.json();
+                if (!data.success) {
+                    content.innerHTML = `<p style="color:var(--danger);">${data.error || 'Failed to load feedback'}</p>`;
+                    return;
+                }
+
+                const avg = parseFloat(data.avgRating || 0).toFixed(1);
+                const count = data.ratingCount || 0;
+                let html = `<div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;"><div style="color:var(--warning); font-size:20px;">★</div><div style="font-weight:700; font-size:18px;">${avg}</div><div style="color:var(--text-muted);">(${count} reviews)</div></div>`;
+
+                if (!data.ratings || data.ratings.length === 0) {
+                    html += '<p style="color:var(--text-muted);">No reviews yet.</p>';
+                } else {
+                    html += data.ratings.map(r => `
+                                <div style="border-top:1px solid var(--border); padding:10px 0;">
+                                    <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+                                        <div style="color:var(--warning); font-weight:700;">★ ${r.rating}</div>
+                                        <div style="font-size:13px; color:var(--text-muted);">${r.customer_name ? r.customer_name : 'Anonymous'} • ${r.created_at ? r.created_at : ''}</div>
+                                    </div>
+                                    <div style="font-size:14px; color:var(--text-body);">${r.review || ''}</div>
+                                </div>
+                            `).join('');
+                }
+
+                content.innerHTML = html;
+            } catch (e) {
+                content.innerHTML = `<p style="color:var(--danger);">${e.message}</p>`;
+            }
+        }
+
+        function closeItemFeedback() {
+            const ov = document.getElementById('item-feedback-overlay');
+            if (ov) ov.style.display = 'none';
+        }
+
+        function renderDesktopCategorySidebar() {
+            const container = document.getElementById('desktop-category-links');
+            const categories = [...new Set(catalogItems.map(item => item.category_name))];
+
+            if (categories.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            container.innerHTML = categories.map((cat, idx) => {
+                const safeCatId = `cat-${cat.replace(/\s+/g, '-').toLowerCase()}`;
+                return `
+                    <button class="desktop-cat-btn ${idx === 0 ? 'active' : ''}" onclick="scrollToCategory('${safeCatId}', this)">
+                        ${cat}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function scrollToCategory(id, btnEl) {
+            document.querySelectorAll('.desktop-cat-btn').forEach(btn => btn.classList.remove('active'));
+            btnEl.classList.add('active');
+
+            const target = document.getElementById(id);
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        // Cart Actions
+        function addToCart(id, name, price, imageUrl, gstPercentage) {
+            cart[id] = {
+                item_name: name,
+                unit_price: price,
+                quantity: 1,
+                image_url: imageUrl,
+                menu_id: selectedMenuId,
+                gst_percentage: gstPercentage || 5.0
+            };
+            updateCartFloatingBar();
+            renderCatalog();
+            renderDesktopCart();
+        }
+
+        function adjustCartQuantity(id, change) {
+            if (!cart[id]) return;
+            cart[id].quantity += change;
+            if (cart[id].quantity <= 0) {
+                delete cart[id];
+            }
+            updateCartFloatingBar();
+            renderCatalog();
+            renderDesktopCart();
+
+            if (document.getElementById('cart-drawer-overlay').style.display === 'flex') {
+                renderCheckoutDrawer();
+            }
+        }
+
+        function updateCartFloatingBar() {
+            const bar = document.getElementById('cart-floating-bar');
+            let totalQty = 0;
+            let totalPrice = 0;
+
+            for (const id in cart) {
+                totalQty += cart[id].quantity;
+                totalPrice += cart[id].unit_price * cart[id].quantity;
+            }
+
+            if (totalQty > 0) {
+                document.getElementById('cart-item-count').innerText = `${totalQty} item${totalQty > 1 ? 's' : ''}`;
+                document.getElementById('cart-price-sum').innerText = `Rs. ${totalPrice.toFixed(2)}`;
+                bar.style.display = 'flex';
+            } else {
+                bar.style.display = 'none';
+            }
+        }
+
+        // Render Desktop Persistent Sidebar Cart with product-level GST computation
+        function renderDesktopCart() {
+            const list = document.getElementById('desktop-cart-items-list');
+            let totalQty = 0;
+            let subtotal = 0;
+
+            let html = '';
+            for (const id in cart) {
+                const item = cart[id];
+                totalQty += item.quantity;
+                const cost = item.unit_price * item.quantity;
+                subtotal += cost;
+
+                html += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">
+                        <div style="flex:1;">
+                            <strong>${item.item_name}</strong><br>
+                            <span style="color:var(--text-muted); font-size:11px;">Rs.${item.unit_price} &times; ${item.quantity} (GST:${item.gst_percentage}%)</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <strong>Rs.${cost.toFixed(2)}</strong>
+                            <div class="item-qty-control" style="scale: 0.85;">
+                                <button class="qty-adjust" onclick="adjustCartQuantity(${id}, -1)">&minus;</button>
+                                <span class="qty-val">${item.quantity}</span>
+                                <button class="qty-adjust" onclick="adjustCartQuantity(${id}, 1)">&plus;</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (totalQty === 0) {
+                list.innerHTML = `<p style="color:var(--text-muted); font-size:13px;">Cart is empty.</p>`;
+                document.getElementById('dk-subtotal').innerText = 'Rs. 0.00';
+                document.getElementById('dk-student-discount-row').style.display = 'none';
+                document.getElementById('dk-student-tag').style.display = 'none';
+                document.getElementById('dk-gst').innerText = 'Rs. 0.00';
+                document.getElementById('dk-payable').innerText = 'Rs. 0.00';
+                document.getElementById('dk-checkout-confirm-btn').disabled = true;
+                return;
+            }
+
+            list.innerHTML = html;
+
+            // Student category discount
+            let studentDiscountPct = 10.0;
+            let studentDiscountAmount = 0;
+            if (customerSession && customerSession.customer_category === 'Student') {
+                studentDiscountAmount = subtotal * (studentDiscountPct / 100);
+                document.getElementById('dk-student-discount-row').style.display = 'flex';
+                document.getElementById('dk-student-tag').style.display = 'block';
+                document.getElementById('dk-discount').innerText = `-Rs. ${studentDiscountAmount.toFixed(2)}`;
+            } else {
+                document.getElementById('dk-student-discount-row').style.display = 'none';
+                document.getElementById('dk-student-tag').style.display = 'none';
+            }
+
+            // Voucher calculations
+            let voucherDiscountAmount = 0;
+            let isFreeMeal = false;
+            if (appliedVoucher) {
+                if (appliedVoucher.discount_type === 'Percentage') {
+                    voucherDiscountAmount = subtotal * (appliedVoucher.discount_value / 100);
+                } else if (appliedVoucher.discount_type === 'Fixed') {
+                    voucherDiscountAmount = appliedVoucher.discount_value;
+                } else if (appliedVoucher.discount_type === 'FreeMeal') {
+                    isFreeMeal = true;
+                    voucherDiscountAmount = subtotal;
+                }
+            }
+
+            let totalDiscount = studentDiscountAmount + voucherDiscountAmount;
+            if (totalDiscount > subtotal) totalDiscount = subtotal;
+
+            // PRODUCT LEVEL GST CALCULATION (distributed on net price after discount)
+            const discountRatio = subtotal > 0 ? (totalDiscount / subtotal) : 0;
+            let gstAmount = 0.00;
+
+            if (!isFreeMeal) {
+                for (const id in cart) {
+                    const item = cart[id];
+                    const netItemPrice = item.unit_price * (1 - discountRatio);
+                    const itemGst = netItemPrice * item.quantity * (item.gst_percentage / 100);
+                    gstAmount += itemGst;
+                }
+            }
+
+            const grandTotal = isFreeMeal ? 0.00 : (subtotal - totalDiscount + gstAmount);
+
+            document.getElementById('dk-subtotal').innerText = `Rs. ${subtotal.toFixed(2)}`;
+            document.getElementById('dk-gst').innerText = `Rs. ${gstAmount.toFixed(2)}`;
+            document.getElementById('dk-payable').innerText = `Rs. ${grandTotal.toFixed(2)}`;
+            document.getElementById('dk-checkout-confirm-btn').disabled = false;
+        }
+
+        // Mobile checkout drawer
+        function openCartDrawer() {
+            renderCheckoutDrawer();
+            document.getElementById('cart-drawer-overlay').style.display = 'flex';
+        }
+
+        function closeCartDrawer() {
+            document.getElementById('cart-drawer-overlay').style.display = 'none';
+        }
+
+        function selectPaymentMethod(method) {
+            currentPaymentMethod = method;
+            document.getElementById('pay-opt-upi').classList.remove('active');
+            document.getElementById('pay-opt-cash').classList.remove('active');
+            document.getElementById('dk-pay-opt-upi').classList.remove('active');
+            document.getElementById('dk-pay-opt-cash').classList.remove('active');
+
+            if (method === 'UPI') {
+                document.getElementById('pay-opt-upi').classList.add('active');
+                document.getElementById('dk-pay-opt-upi').classList.add('active');
+            } else {
+                document.getElementById('pay-opt-cash').classList.add('active');
+                document.getElementById('dk-pay-opt-cash').classList.add('active');
+            }
+        }
+
+        function renderCheckoutDrawer() {
+            const listContainer = document.getElementById('checkout-items-list');
+            let totalQty = 0;
+            let subtotal = 0;
+
+            let itemsHtml = '';
+            for (const id in cart) {
+                const item = cart[id];
+                totalQty += item.quantity;
+                const itemCost = item.unit_price * item.quantity;
+                subtotal += itemCost;
+
+                itemsHtml += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 14px;">
+                        <div>
+                            <strong>${item.item_name}</strong><br>
+                            <span style="color: var(--text-muted); font-size:12px;">Rs. ${item.unit_price} &times; ${item.quantity} (GST:${item.gst_percentage}%)</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-weight: 600;">Rs. ${itemCost.toFixed(2)}</span>
+                            <div class="item-qty-control" style="scale: 0.85;">
+                                <button class="qty-adjust" onclick="adjustCartQuantity(${id}, -1)">&minus;</button>
+                                <span class="qty-val">${item.quantity}</span>
+                                <button class="qty-adjust" onclick="adjustCartQuantity(${id}, 1)">&plus;</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            listContainer.innerHTML = itemsHtml;
+
+            let studentDiscountPct = 10.0;
+            let studentDiscountAmount = 0;
+            if (customerSession && customerSession.customer_category === 'Student') {
+                studentDiscountAmount = subtotal * (studentDiscountPct / 100);
+                document.getElementById('student-discount-row').style.display = 'flex';
+                document.getElementById('student-tag').style.display = 'block';
+                document.getElementById('summary-discount').innerText = `-Rs. ${studentDiscountAmount.toFixed(2)}`;
+            } else {
+                document.getElementById('student-discount-row').style.display = 'none';
+                document.getElementById('student-tag').style.display = 'none';
+            }
+
+            // Voucher calculations
+            let voucherDiscountAmount = 0;
+            let isFreeMeal = false;
+            if (appliedVoucher) {
+                if (appliedVoucher.discount_type === 'Percentage') {
+                    voucherDiscountAmount = subtotal * (appliedVoucher.discount_value / 100);
+                } else if (appliedVoucher.discount_type === 'Fixed') {
+                    voucherDiscountAmount = appliedVoucher.discount_value;
+                } else if (appliedVoucher.discount_type === 'FreeMeal') {
+                    isFreeMeal = true;
+                    voucherDiscountAmount = subtotal;
+                }
+            }
+
+            let totalDiscount = studentDiscountAmount + voucherDiscountAmount;
+            if (totalDiscount > subtotal) totalDiscount = subtotal;
+
+            // PRODUCT LEVEL GST CALCULATION (distributed on net price after discount)
+            const discountRatio = subtotal > 0 ? (totalDiscount / subtotal) : 0;
+            let gstAmount = 0.00;
+
+            if (!isFreeMeal) {
+                for (const id in cart) {
+                    const item = cart[id];
+                    const netItemPrice = item.unit_price * (1 - discountRatio);
+                    const itemGst = netItemPrice * item.quantity * (item.gst_percentage / 100);
+                    gstAmount += itemGst;
+                }
+            }
+
+            const grandTotal = isFreeMeal ? 0.00 : (subtotal - totalDiscount + gstAmount);
+
+            document.getElementById('summary-subtotal').innerText = `Rs. ${subtotal.toFixed(2)}`;
+            document.getElementById('summary-gst').innerText = `Rs. ${gstAmount.toFixed(2)}`;
+            document.getElementById('summary-payable').innerText = `Rs. ${grandTotal.toFixed(2)}`;
+            document.getElementById('checkout-confirm-btn').disabled = totalQty === 0;
+        }
+
+        async function submitFinalOrder() {
+            if (!customerSession) return;
+
+            let subtotal = 0;
+            let gstTotal = 0;
+            for (const id in cart) {
+                const item = cart[id];
+                const itemSub = item.unit_price * item.quantity;
+                const gstPct = item.gst_percentage || 0;
+                subtotal += itemSub;
+                gstTotal += itemSub * (gstPct / 100);
+            }
+            let totalPayable = subtotal + gstTotal;
+            if (appliedVoucher) {
+                if (appliedVoucher.discount_type === 'Percentage') {
+                    totalPayable -= (totalPayable * (appliedVoucher.discount_value / 100));
+                } else {
+                    totalPayable -= appliedVoucher.discount_value;
+                }
+                if (totalPayable < 0) totalPayable = 0;
+            }
+
+            const confirmMsg = currentPaymentMethod === 'UPI'
+                ? `Are you sure you want to pay Rs. ${totalPayable.toFixed(2)} via UPI scan?`
+                : `Are you sure you want to place this order and pay Rs. ${totalPayable.toFixed(2)} at the counter?`;
+
+            const confirmed = await showCustomerConfirm("Confirm Order Payment", confirmMsg, "💳");
+            if (!confirmed) return;
+
+            const cartItems = [];
+            for (const id in cart) {
+                cartItems.push({
+                    item_id: parseInt(id),
+                    item_name: cart[id].item_name,
+                    unit_price: cart[id].unit_price,
+                    quantity: cart[id].quantity
+                });
+            }
+
+            const voucherCode = appliedVoucher ? appliedVoucher.voucher_code : null;
+
+            try {
+                const res = await fetch(`${API_URL}/orders/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        customer_id: customerSession.customer_id,
+                        canteen_id: selectedCanteenId,
+                        cart_items: cartItems,
+                        payment_type: currentPaymentMethod,
+                        voucher_code: voucherCode
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    latestOrderResult = data;
+                    cart = {};
+                    appliedVoucher = null;
+                    resetVoucherUI();
+                    closeCartDrawer();
+                    updateCartFloatingBar();
+                    renderCatalog();
+                    renderDesktopCart();
+
+                    if (data.total_payable === 0.00) {
+                        alert("Voucher fully cleared your payable total! Order has been received by kitchen.");
+                        loadInAppReceipt(data.order_id);
+                    } else if (currentPaymentMethod === 'UPI') {
+                        showPayWaitScreen(data);
+                    } else {
+                        alert(`Order #${data.order_id} placed! Settle cash payment of Rs.${data.total_payable.toFixed(2)} at the counter.`);
+                        showCatalogScreen();
+                    }
+                } else {
+                    alert("Order Failed: " + data.error);
+                }
+            } catch (err) {
+                alert("Order creation failed: " + err.message);
+            }
+        }
+
+        function showPayWaitScreen(orderData) {
+            hideAllScreens();
+            document.getElementById('paywait-amount').innerText = `Rs. ${orderData.total_payable.toFixed(2)}`;
+            document.getElementById('paywait-qr').src = orderData.qr_code;
+            document.getElementById('paywait-deeplink').href = orderData.upi_link;
+            document.getElementById('screen-paywait').style.display = 'flex';
+        }
+
+        async function loadInAppReceipt(orderId) {
+            try {
+                const res = await fetch(`${API_URL}/receipt/${orderId}`);
+                const data = await res.json();
+
+                if (data.success) {
+                    hideAllScreens();
+                    document.getElementById('receipt-order-status').innerText = data.order.order_status;
+
+                    const receiptBox = document.getElementById('receipt-details-box');
+
+                    let tableRowsHtml = '';
+                    data.items.forEach(item => {
+                        tableRowsHtml += `
+                            <tr>
+                                <td><strong>${item.item_name}</strong></td>
+                                <td style="text-align:center;">${item.quantity}</td>
+                                <td style="text-align:right;">Rs.${item.subtotal.toFixed(2)}</td>
+                            </tr>
+                        `;
+                    });
+
+                    let discountRowHtml = '';
+                    if (data.order.discount_amount > 0) {
+                        discountRowHtml = `
+                            <div class="receipt-bill-row" style="color: var(--success); font-weight: 600;">
+                                <span>Discounts Deducted:</span>
+                                <span>-Rs.${data.order.discount_amount.toFixed(2)}</span>
+                            </div>
+                        `;
+                    }
+
+                    receiptBox.innerHTML = `
+                        <div class="receipt-header">
+                            <div class="receipt-canteen-name">Campus Central Canteen</div>
+                            <span style="font-size:11px; color:var(--text-muted);">Campus Academic Block, Level 1</span>
+                            
+                            <div class="receipt-meta-grid">
+                                <div class="receipt-meta-item">Order No: <strong>#${data.order.order_id}</strong></div>
+                                <div class="receipt-meta-item">Category: <strong>${data.order.customer_category}</strong></div>
+                                <div class="receipt-meta-item">Date: <strong>${new Date(data.order.created_at).toLocaleDateString()}</strong></div>
+                                <div class="receipt-meta-item">Time: <strong>${new Date(data.order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong></div>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Customer Name</div>
+                            <div style="font-size:14px; font-weight:600;">${data.order.full_name}</div>
+                        </div>
+
+                        <div>
+                            <table class="receipt-table">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align:left;">Item Description</th>
+                                        <th style="text-align:center; width: 50px;">Qty</th>
+                                        <th style="text-align:right; width: 90px;">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${tableRowsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="receipt-bill-summary">
+                            <div class="receipt-bill-row">
+                                <span>Subtotal Amount:</span>
+                                <span>Rs.${data.order.total_item_amount.toFixed(2)}</span>
+                            </div>
+                            ${discountRowHtml}
+                            <div class="receipt-bill-row">
+                                <span>GST (Product-specific):</span>
+                                <span>Rs.${data.order.gst_amount.toFixed(2)}</span>
+                            </div>
+                            <div class="receipt-bill-row total">
+                                <span>Total Paid Amount:</span>
+                                <span>Rs.${data.order.total_amount.toFixed(2)}</span>
+                            </div>
+                        </div>
+
+                        <div style="border-top: 1px dashed var(--border); padding-top: 10px; font-size: 11px; text-align: center; color: var(--text-muted);">
+                            <div>Payment Method: <strong>${data.order.payment_type}</strong> (${data.order.payment_status})</div>
+                            ${data.order.voucher_code ? `<div style="color:var(--success);">Voucher Applied: <strong>${data.order.voucher_code}</strong></div>` : ''}
+                            <div style="font-size: 9px; margin-top: 4px; word-break: break-all;">Ref ID: ${data.order.transaction_ref_id || 'Clearance Verified'}</div>
+                        </div>
+                    `;
+
+                    document.getElementById('screen-receipt').style.display = 'flex';
+                }
+            } catch (err) {
+                alert("Failed to load structured receipt: " + err.message);
+            }
+        }
+
+        function downloadReceiptPDF() {
+            if (!latestOrderResult) return;
+            window.open(`${API_URL}/receipt/${latestOrderResult.order_id}/pdf`, '_blank');
+        }
+
+        // Ratings Screen
+        async function showRatingScreen(orderId) {
+            hideAllScreens();
+            const container = document.getElementById('rating-items-container');
+            container.innerHTML = '<p style="text-align: center;">Loading rating details...</p>';
+            document.getElementById('screen-rating').style.display = 'flex';
+
+            try {
+                const res = await fetch(`${API_URL}/receipt/${orderId}`);
+                const data = await res.json();
+
+                if (data.success) {
+                    let ratingsHtml = `
+                        <div class="feedback-item-rating">
+                            <div>
+                                <strong>Canteen Section Service</strong><br>
+                                <small style="color: var(--text-muted);">Rate section service</small>
+                            </div>
+                            <div class="star-rating" data-menu="${data.items[0].menu_id || 1}">
+                                <span class="star" onclick="rateStar(this, 1)">&starf;</span>
+                                <span class="star" onclick="rateStar(this, 2)">&starf;</span>
+                                <span class="star" onclick="rateStar(this, 3)">&starf;</span>
+                                <span class="star" onclick="rateStar(this, 4)">&starf;</span>
+                                <span class="star" onclick="rateStar(this, 5)">&starf;</span>
+                            </div>
+                        </div>
+                    `;
+
+                    data.items.forEach(item => {
+                        ratingsHtml += `
+                            <div class="feedback-item-rating">
+                                <div>
+                                    <strong>${item.item_name}</strong><br>
+                                    <small style="color: var(--text-muted);">Rate recipe taste & quality</small>
+                                </div>
+                                <div class="star-rating" data-item="${item.item_id}">
+                                    <span class="star" onclick="rateStar(this, 1)">&starf;</span>
+                                    <span class="star" onclick="rateStar(this, 2)">&starf;</span>
+                                    <span class="star" onclick="rateStar(this, 3)">&starf;</span>
+                                    <span class="star" onclick="rateStar(this, 4)">&starf;</span>
+                                    <span class="star" onclick="rateStar(this, 5)">&starf;</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    container.innerHTML = ratingsHtml;
+                }
+            } catch (e) {
+                container.innerHTML = `<p style="color: var(--danger);">Failed to load order items.</p>`;
+            }
+        }
+
+        function rateStar(starEl, ratingValue) {
+            const parent = starEl.parentNode;
+            const stars = parent.querySelectorAll('.star');
+            parent.setAttribute('data-rating', ratingValue);
+
+            stars.forEach((star, index) => {
+                if (index < ratingValue) {
+                    star.classList.add('selected');
+                } else {
+                    star.classList.remove('selected');
+                }
+            });
+        }
+
+        async function submitOrderRatings() {
+            if (!latestOrderResult || !customerSession) return;
+            const orderId = latestOrderResult.order_id;
+            const customerId = customerSession.customer_id;
+            const review = document.getElementById('feedback-text').value.trim();
+
+            const ratings = [];
+            const starSelectors = document.querySelectorAll('.star-rating');
+
+            starSelectors.forEach(sel => {
+                const rating = parseInt(sel.getAttribute('data-rating') || 0);
+                if (rating > 0) {
+                    const itemId = sel.getAttribute('data-item');
+                    const menuId = sel.getAttribute('data-menu');
+
+                    ratings.push({
+                        item_id: itemId ? parseInt(itemId) : null,
+                        menu_id: menuId ? parseInt(menuId) : null,
+                        rating: rating,
+                        review: review
+                    });
+                }
+            });
+
+            if (ratings.length === 0) {
+                alert("Please select at least 1 star rating.");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/feedback/rate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        customer_id: customerId,
+                        order_id: orderId,
+                        ratings: ratings
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    alert("Ratings submitted successfully!");
+                    document.getElementById('feedback-text').value = '';
+                    loadPublicFeedbacks(); // Refresh reviews summary lists
+                    showCatalogScreen();
+                }
+            } catch (err) {
+                alert("Failed to submit rating: " + err.message);
+            }
+        }
+
+        function showToast(title, body) {
+            const toast = document.getElementById('system-toast');
+            document.getElementById('toast-title-text').innerText = title;
+            document.getElementById('toast-body-text').innerText = body;
+
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 6000);
+        }
+    </script>
+</body>
+
+</html>

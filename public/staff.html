@@ -1,0 +1,3841 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus Canteen - Staff Terminal</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/config.js"></script>
+    <style>
+        :root {
+            --bg-primary: #f1f5f9;
+            --bg-card: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --primary-light: #e0e7ff;
+            --success: #059669;
+            --success-light: #d1fae5;
+            --warning: #d97706;
+            --warning-light: #fef3c7;
+            --danger: #dc2626;
+            --danger-light: #fee2e2;
+            --border: #cbd5e1;
+            --radius-lg: 12px;
+            --radius-md: 8px;
+            --radius-sm: 4px;
+            --font-main: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-card: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #818cf8;
+            --primary-hover: #6366f1;
+            --primary-light: #312e81;
+            --border: #334155;
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3);
+        }
+
+        [data-theme="contrast"] {
+            --bg-primary: #000000;
+            --bg-card: #000000;
+            --text-main: #ffffff;
+            --text-muted: #ffffff;
+            --primary: #ffff00;
+            --primary-hover: #ffff00;
+            --primary-light: #000000;
+            --border: #ffffff;
+            --success: #00ff00;
+            --warning: #ffff00;
+            --danger: #ff0000;
+            --shadow-md: none;
+        }
+
+        [data-theme="retro"] {
+            --bg-primary: #fcf6e4;
+            --bg-card: #f7eed3;
+            --text-main: #3d3127;
+            --text-muted: #786450;
+            --primary: #cc6633;
+            --primary-hover: #b34a19;
+            --primary-light: #f5d6c4;
+            --border: #d4c3ab;
+            --success: #6e8b3d;
+            --warning: #d99726;
+            --danger: #b22222;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-main);
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-md);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .header-brand {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .theme-select {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 4px 8px;
+            font-size: 12px;
+            font-weight: 500;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            min-height: calc(100vh - 65px);
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+        }
+
+        /* Sidebar Grouped Layout */
+        .sidebar {
+            background-color: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 20px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+        }
+
+        .sidebar-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sidebar-group-title {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding-left: 10px;
+            margin-bottom: 4px;
+        }
+
+        .sidebar-btn {
+            background: none;
+            border: none;
+            padding: 10px 14px;
+            border-radius: var(--radius-md);
+            text-align: left;
+            font-size: 13.5px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .sidebar-btn.active {
+            background-color: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .sidebar-btn:hover {
+            background-color: var(--bg-primary);
+        }
+
+        .main-content {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            overflow-y: auto;
+        }
+
+        .login-screen {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: calc(100vh - 65px);
+            padding: 20px;
+        }
+
+        .login-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .card-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+            gap: 12px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 14px;
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary);
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: #ffffff;
+            border: none;
+            padding: 12px 18px;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-outline {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+        }
+
+        .btn-success {
+            background-color: var(--success);
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+        }
+
+        .btn-warning {
+            background-color: var(--warning);
+        }
+
+        /* Status badge styles */
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-block;
+        }
+
+        .badge-primary {
+            background-color: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .badge-success {
+            background-color: var(--success-light);
+            color: var(--success);
+        }
+
+        .badge-warning {
+            background-color: var(--warning-light);
+            color: var(--warning);
+        }
+
+        .badge-danger {
+            background-color: var(--danger-light);
+            color: var(--danger);
+        }
+
+        /* Tables */
+        .table-responsive {
+            overflow-x: auto;
+            width: 100%;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            text-align: left;
+        }
+
+        th {
+            background-color: var(--bg-primary);
+            padding: 12px 16px;
+            font-weight: 700;
+            border-bottom: 2px solid var(--border);
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:hover td {
+            background-color: rgba(99, 102, 241, 0.03);
+        }
+
+        /* Analytical widgets */
+        .stat-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--text-main);
+        }
+
+        /* Kitchen Cooking Queue */
+        .kds-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .kds-card {
+            background-color: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .kds-card.urgent {
+            border-color: var(--danger);
+        }
+
+        .kds-header {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        .kds-item-line {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 14px;
+            border-bottom: 1px dashed var(--border);
+        }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            padding: 20px;
+        }
+
+        .modal-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="header-brand">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+            <span>Staff Administration Terminal</span>
+            <span id="staff-role-badge" class="badge badge-primary"
+                style="display: none; margin-left: 10px;">Manager</span>
+        </div>
+        <div class="header-actions">
+            <select id="themeSelector" class="theme-select" onchange="changeTheme(this.value)">
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="contrast">High Contrast</option>
+                <option value="retro">Warm Retro</option>
+            </select>
+            <div style="position:relative; margin-right:8px;">
+                <button class="btn btn-outline" id="notif-bell" title="Notifications" onclick="toggleNotifDropdown()">🔔
+                    <span id="notif-count"
+                        style="background:var(--danger); color:#fff; font-size:11px; padding:2px 6px; border-radius:12px; margin-left:6px; display:none;">0</span></button>
+                <div id="notif-dropdown"
+                    style="display:none; position:absolute; right:0; top:36px; width:320px; max-height:360px; overflow:auto; background:var(--bg-card); border:1px solid var(--border); padding:8px; box-shadow:0 6px 18px rgba(0,0,0,0.12); z-index:9999;">
+                    <div style="font-weight:700; margin-bottom:8px;">Notifications</div>
+                    <div id="notif-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+                    <div style="text-align:center; margin-top:8px;"><button class="btn btn-outline"
+                            onclick="clearNotifList()">Clear</button></div>
+                </div>
+            </div>
+            <button class="btn btn-outline" id="change-pwd-btn" style="display: none; padding: 6px 12px; font-size:12px; margin-right:8px;"
+                onclick="openChangePasswordModal()">Change Password</button>
+            <button class="btn btn-outline" id="logout-btn" style="display: none; padding: 6px 12px; font-size:12px;"
+                onclick="logoutStaff()">Log Out</button>
+        </div>
+    </header>
+
+    <!-- LOGIN SCREEN -->
+    <div class="login-screen" id="view-login">
+        <div class="login-card">
+            <h3 style="text-align: center;">Staff Login</h3>
+            <p style="font-size: 12px; color: var(--text-muted); text-align: center;">Access Dashboard according to
+                system roles.</p>
+
+            <div class="form-group">
+                <label>Email Address</label>
+                <input type="email" id="login-email" class="form-control" placeholder="manager@canteen.com">
+            </div>
+
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="login-password" class="form-control" placeholder="Password">
+            </div>
+
+            <div class="form-group" id="chef-section-select-box">
+                <label>Kitchen Station Section (If Chef)</label>
+                <select id="login-chef-section" class="form-control">
+                    <option value="1">Snacks Section</option>
+                    <option value="2">Beverages Section</option>
+                    <option value="3">Meals Section</option>
+                </select>
+            </div>
+
+            <button class="btn" style="width: 100%;" onclick="loginStaff()">Authenticate Portal &rarr;</button>
+        </div>
+    </div>
+
+    <!-- LOGGED IN VIEWPORT LAYOUT -->
+    <div class="dashboard-layout" id="view-dashboard" style="display: none;">
+
+        <!-- STRUCTURED GROUPED SIDEBAR -->
+        <div class="sidebar">
+
+            <!-- CATALOG MANAGEMENT GROUP (Manager Only) -->
+            <div class="sidebar-group" id="group-catalog" style="display: none;">
+                <div class="sidebar-group-title">Catalog Manager</div>
+                <button class="sidebar-btn" onclick="switchTab('tab-mgr-canteens', this)">
+                    1. Manage Canteens
+                </button>
+                <button class="sidebar-btn" onclick="switchTab('tab-mgr-sections', this)">
+                    2. Canteen Sections (Menus)
+                </button>
+                <button class="sidebar-btn" onclick="switchTab('tab-mgr-categories', this)">
+                    3. Food Categories
+                </button>
+                <button class="sidebar-btn active" onclick="switchTab('tab-mgr-items', this)">
+                    4. Food Catalog Items
+                </button>
+                <button class="sidebar-btn" onclick="switchTab('tab-mgr-ads', this)">
+                    5. Promotions & Ads
+                </button>
+                <button class="sidebar-btn" onclick="switchTab('tab-mgr-vouchers', this)">
+                    6. Event Vouchers
+                </button>
+            </div>
+
+            <!-- KITCHEN CONTROLS GROUP (Chef Only) -->
+            <div class="sidebar-group" id="group-kitchen" style="display: none;">
+                <div class="sidebar-group-title">Kitchen Controls</div>
+                <button class="sidebar-btn active" onclick="switchTab('tab-chef-kds', this)">
+                    Cooking Queue
+                </button>
+                <button class="sidebar-btn" onclick="switchTab('tab-chef-stock', this)">
+                    Ingredient Stock
+                </button>
+                <button class="sidebar-btn" onclick="switchTab('tab-chef-recipes', this)">
+                    Recipes Mapping
+                </button>
+            </div>
+
+            <!-- ACCOUNTANT GROUP (Accountant Only) -->
+            <div class="sidebar-group" id="group-accountant" style="display: none;">
+                <div class="sidebar-group-title">Accountant Ledgers</div>
+                <button class="sidebar-btn active" onclick="switchTab('tab-acct-cash', this)">
+                    Cashier Approvals
+                </button>
+                <button class="sidebar-btn" onclick="switchTab('tab-acct-upi', this)">
+                    UPI Approvals
+                </button>
+                <button class="sidebar-btn" onclick="switchTab('tab-acct-reports', this)">
+                    Financial Accounting
+                </button>
+                <button class="sidebar-btn" onclick="switchTab('tab-acct-archive', this)">
+                    Data Retention Archiver
+                </button>
+            </div>
+
+            <!-- STAFF ADMIN GROUP (Manager Only) -->
+            <div class="sidebar-group" id="group-staff-admin" style="display: none;">
+                <div class="sidebar-group-title">System Admin</div>
+                <button class="sidebar-btn" onclick="switchTab('tab-mgr-staff', this)">
+                    Staff User Accounts
+                </button>
+                <button class="sidebar-btn" onclick="switchTab('tab-mgr-feedback', this)">
+                    Reviews & Feedback
+                </button>
+                <button class="sidebar-btn" onclick="switchTab('tab-mgr-logs', this)">
+                    Audit Logs Tracker
+                </button>
+                <button class="sidebar-btn" onclick="switchTab('tab-sys-settings', this)">
+                    Portal Settings
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Main View Panel -->
+        <div class="main-content">
+
+            <!-- TAB 1: Manager - Food Catalog Items -->
+            <div id="tab-mgr-items" class="dashboard-tab-content">
+
+                <!-- Quick Workflow Guide Card for Staff -->
+                <div class="card"
+                    style="background: linear-gradient(135deg, var(--bg-card), var(--border)); margin-bottom: 20px; border: 1px solid var(--border); padding: 18px; gap: 12px; display: flex; flex-direction: column;">
+                    <h3 style="margin: 0; font-size: 15px; display: flex; align-items: center; gap: 8px;">
+                        <span>📋</span> Staff Setup Guide: How to Build Your Canteen Menu Catalog
+                    </h3>
+                    <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
+                        To successfully publish new food items, follow this sequence of steps from left to right:
+                    </p>
+                    <div
+                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 4px;">
+                        <div
+                            style="background: var(--bg-primary); padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--border); text-align: center; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
+                            <div style="font-weight: 700; font-size: 11px; color: var(--primary);">Step 1: Canteen
+                                Location</div>
+                            <button class="btn btn-outline" style="padding: 6px 10px; font-size: 11px; width: 100%;"
+                                onclick="switchTab('tab-mgr-canteens', document.querySelector('[onclick*=\'tab-mgr-canteens\']'))">Go
+                                to Canteens ➔</button>
+                        </div>
+                        <div
+                            style="background: var(--bg-primary); padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--border); text-align: center; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
+                            <div style="font-weight: 700; font-size: 11px; color: var(--primary);">Step 2: Section
+                                (Menu)</div>
+                            <button class="btn btn-outline" style="padding: 6px 10px; font-size: 11px; width: 100%;"
+                                onclick="switchTab('tab-mgr-sections', document.querySelector('[onclick*=\'tab-mgr-sections\']'))">Go
+                                to Sections ➔</button>
+                        </div>
+                        <div
+                            style="background: var(--bg-primary); padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--border); text-align: center; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
+                            <div style="font-weight: 700; font-size: 11px; color: var(--primary);">Step 3: Food Category
+                            </div>
+                            <button class="btn btn-outline" style="padding: 6px 10px; font-size: 11px; width: 100%;"
+                                onclick="switchTab('tab-mgr-categories', document.querySelector('[onclick*=\'tab-mgr-categories\']'))">Go
+                                to Categories ➔</button>
+                        </div>
+                        <div
+                            style="background: var(--bg-primary); padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--border); text-align: center; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
+                            <div style="font-weight: 700; font-size: 11px; color: var(--primary);">Step 4: Food Catalog
+                                Item</div>
+                            <button class="btn btn-success" style="padding: 6px 10px; font-size: 11px; width: 100%;"
+                                onclick="openItemModal()">+ Add New Item</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header-row">
+                        <h2>Manager: Canteen Food Catalog</h2>
+                        <button class="btn btn-success" onclick="openItemModal()">+ Add New Item</button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Item Details</th>
+                                    <th>Canteen Section</th>
+                                    <th>Category</th>
+                                    <th>Base Price</th>
+                                    <th>Discount Setup</th>
+                                    <th>Avg Rating</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mgr-items-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NEW TAB 1B: Canteen Sections (Menus) Manager -->
+            <div id="tab-mgr-sections" class="dashboard-tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-header-row">
+                        <h2>Manage Canteen Sections (Menus)</h2>
+                        <button class="btn btn-success" onclick="openSectionModal()">+ Create Section</button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Section ID</th>
+                                    <th>Section Name</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mgr-sections-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NEW TAB 1C: Categories Manager -->
+            <div id="tab-mgr-categories" class="dashboard-tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-header-row">
+                        <h2>Manage Food Categories</h2>
+                        <button class="btn btn-success" onclick="openCategoryModal()">+ Create Category</button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Category ID</th>
+                                    <th>Category Name</th>
+                                    <th>Assigned Canteen Section</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mgr-categories-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: Manager - Ads & Promotions -->
+            <div id="tab-mgr-ads" class="dashboard-tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-header-row">
+                        <h2>Manager: Advertisements & Promo Carousels</h2>
+                        <button class="btn btn-success" onclick="openAdModal()">+ Add New Banner Ad</button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Preview</th>
+                                    <th>Ad Title</th>
+                                    <th>Ad Type</th>
+                                    <th>Description / Promotion Info</th>
+                                    <th>Promo Code</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mgr-ads-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NEW TAB 2B: Staff User Accounts Manager -->
+            <div id="tab-mgr-staff" class="dashboard-tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-header-row">
+                        <h2>Manage Staff User Accounts</h2>
+                        <button class="btn btn-success" onclick="openStaffModal()">+ Register Staff</button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email Address</th>
+                                    <th>Phone</th>
+                                    <th>System Role</th>
+                                    <th>Assigned Canteen</th>
+                                    <th>Account Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mgr-staff-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NEW TAB 2C: Customer Reviews & Ratings Feedback -->
+            <div id="tab-mgr-feedback" class="dashboard-tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-header-row">
+                        <h2>Customer Canteen Reviews & Ratings</h2>
+                    </div>
+
+                    <div class="grid-2">
+                        <!-- Ratings -->
+                        <div>
+                            <h3 style="margin-bottom: 12px;">Meal & Section Ratings</h3>
+                            <div class="table-responsive"
+                                style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Customer</th>
+                                            <th>Item/Section</th>
+                                            <th>Rating</th>
+                                            <th>Review Comment</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="mgr-ratings-table-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Suggestions -->
+                        <div>
+                            <h3 style="margin-bottom: 12px;">General Feedback Suggestions</h3>
+                            <div class="table-responsive"
+                                style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Customer</th>
+                                            <th>Date</th>
+                                            <th>Feedback Message</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="mgr-feedback-table-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: Manager - Audit logs -->
+            <div id="tab-mgr-logs" class="dashboard-tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-header-row">
+                        <h2>Audit Activity Logs</h2>
+                        <button class="btn btn-outline" onclick="loadAuditLogs()">Refresh Audit Trail</button>
+                    </div>
+                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Issuer Type</th>
+                                    <th>ID</th>
+                                    <th>Action Category</th>
+                                    <th>Detailed History Logs</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mgr-logs-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: Chef Cooking queue -->
+            <div id="tab-chef-kds" class="dashboard-tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-header-row">
+                        <div>
+                            <h2 id="chef-kds-title">Kitchen Station Cooking Queue</h2>
+                            <p style="font-size: 13px; color: var(--text-muted);">Real-time display showing items
+                                assigned only to this section.</p>
+                        </div>
+                        <span class="badge badge-success" id="chef-kds-station-badge">Snacks Station</span>
+                    </div>
+
+                    <div class="kds-grid" id="chef-kds-cards-container"></div>
+                </div>
+            </div>
+
+            <!-- TAB 5: Chef Inventory supplies -->
+            <div id="tab-chef-stock" class="dashboard-tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-header-row">
+                        <h2>Ingredient & Supplies Stock levels</h2>
+                        <button class="btn btn-success" onclick="openStockModal()">+ Add New Ingredient</button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Ingredient Name</th>
+                                    <th>Current Stock Level</th>
+                                    <th>Alert Min Threshold</th>
+                                    <th>Unit Measure</th>
+                                    <th>Status Warning</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="chef-stock-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 6: Chef Recipe mappings -->
+            <div id="tab-chef-recipes" class="dashboard-tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-header-row">
+                        <h2>Ingredient Recipes Mapper</h2>
+                        <p style="font-size:13px; color:var(--text-muted);">Map ingredients required to prepare each
+                            menu item. Stock deductions are auto-calculated at checkout.</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Select Food Item</label>
+                        <select id="recipe-item-select" class="form-control"
+                            onchange="loadRecipeIngredientsMapping(this.value)"></select>
+                    </div>
+
+                    <div
+                        style="border-top: 1px solid var(--border); padding-top: 20px; display: flex; flex-direction: column; gap: 14px;">
+                        <h4>Recipe Formula Ingredients</h4>
+                        <div id="recipe-ingredients-list" style="display: flex; flex-direction: column; gap: 10px;">
+                        </div>
+                        <button class="btn" style="align-self: flex-start;"
+                            onclick="saveRecipeIngredientsFormula()">Save Recipe Formula</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 7: Accountant Cash approvals -->
+            <div id="tab-acct-cash" class="dashboard-tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-header-row">
+                        <h2>Cash Payment Approval Queue</h2>
+                        <p style="font-size:13px; color:var(--text-muted);">Counter Cash cashier queue. Settle bills and
+                            approve cash payments to push items into cooking.</p>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Customer Name</th>
+                                    <th>Profile Category</th>
+                                    <th>Total Items Count</th>
+                                    <th>Payable Amount</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="acct-cash-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 8: Accountant Financial reports -->
+            <div id="tab-acct-reports" class="dashboard-tab-content" style="display: none;">
+                <div class="grid-3" id="acct-widgets-container">
+                    <div class="stat-card">
+                        <span class="stat-label">Gross Earnings Revenue</span>
+                        <span class="stat-value" id="acct-stat-revenue">Rs. 0.00</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Total Completed Sells</span>
+                        <span class="stat-value" id="acct-stat-transactions">0</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Average Sale ticket</span>
+                        <span class="stat-value" id="acct-stat-ticket">Rs. 0.00</span>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <h3>Section Canteen Sales</h3>
+                        <div class="table-responsive" style="margin-top: 14px;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Canteen Section</th>
+                                        <th>Items Sold</th>
+                                        <th>Revenue Shares</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="acct-section-sales-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>Payment Methods Shares</h3>
+                        <div class="table-responsive" style="margin-top: 14px;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Method</th>
+                                        <th>Sales Count</th>
+                                        <th>Collected Revenue</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="acct-method-sales-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Recent Transactions Ledgers</h3>
+                    <div class="table-responsive" style="margin-top: 14px; max-height: 300px; overflow-y: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Transaction ID</th>
+                                    <th>Order ID</th>
+                                    <th>Customer</th>
+                                    <th>Total Items</th>
+                                    <th>Discounts</th>
+                                    <th>GST Paid</th>
+                                    <th>Total Paid</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="acct-transactions-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div id="tab-acct-upi" class="dashboard-tab-content" style="display: none;">
+                <h2>UPI Settlements Awaiting Accountant</h2>
+                <div class="card">
+                    <table style="width:100%; border-collapse:collapse;">
+                        <thead>
+                            <tr>
+                                <th>Order</th>
+                                <th>Customer</th>
+                                <th>Items (summary)</th>
+                                <th>Amount</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="acct-upi-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 9: Accountant Data archiver -->
+            <div id="tab-acct-archive" class="dashboard-tab-content" style="display: none;">
+                <div class="grid-2">
+                    <div class="card" style="display:flex; flex-direction:column; gap:16px;">
+                        <h3>Active Database Archival & Purge Utility</h3>
+                        <p style="font-size: 13px; color: var(--text-muted);">
+                            Compile data older than a chosen threshold into standalone SQLite files under
+                            <code>archives/</code>, purge active databases, and vacuum.
+                        </p>
+
+                        <div class="form-group">
+                            <label>Archival Purging Interval Threshold</label>
+                            <select id="archive-threshold-days" class="form-control">
+                                <option value="365">Older than 1 Year (365 days)</option>
+                                <option value="180">Older than 6 Months (180 days)</option>
+                                <option value="30">Older than 1 Month (30 days)</option>
+                                <option value="1">Older than 1 Day (Demo Test Mode - 1 day)</option>
+                            </select>
+                        </div>
+
+                        <button class="btn btn-danger" onclick="executeDatabaseArchivePurge()">Run Archive & Clean
+                            DB</button>
+                    </div>
+
+                    <div class="card">
+                        <h3>View and Query Exported Archives</h3>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">Select an exported
+                            database archive file to dynamically inspect historically saved receipts and financial
+                            summaries.</p>
+
+                        <div class="form-group">
+                            <label>Select Archive File</label>
+                            <select id="archive-files-selector" class="form-control"
+                                onchange="queryHistoricalArchive(this.value)">
+                                <option value="">-- No archive selected --</option>
+                            </select>
+                        </div>
+
+                        <div id="archive-query-results"
+                            style="display: none; border-top: 1px dashed var(--border); padding-top: 14px; margin-top: 14px;">
+                            <h4 style="margin-bottom: 8px;">Archive Financial Summary</h4>
+                            <p style="font-size: 13px;"><strong>Gross Revenue:</strong> <span
+                                    id="archive-summary-revenue">Rs. 0.00</span></p>
+                            <p style="font-size: 13px; margin-bottom: 12px;"><strong>Successful Sells:</strong> <span
+                                    id="archive-summary-txs">0</span></p>
+
+                            <h4 style="margin-bottom: 8px;">Historical Transactions Log</h4>
+                            <div
+                                style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 8px;">
+                                <table style="font-size: 12px;">
+                                    <thead>
+                                        <tr>
+                                            <th>OrderID</th>
+                                            <th>Payable</th>
+                                            <th>Method</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="archive-tx-table-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NEW TAB: Event Vouchers Management -->
+            <div id="tab-mgr-vouchers" class="dashboard-tab-content" style="display: none;">
+                <div class="card">
+                    <div style="border-bottom:1px solid var(--border); padding-bottom:12px; margin-bottom:16px;">
+                        <h2>Event Discount Vouchers</h2>
+                        <p style="color:var(--text-muted); font-size:12px;">Create single-use promo vouchers for events
+                            or free meals.</p>
+                    </div>
+
+                    <!-- Voucher Generation form -->
+                    <div
+                        style="background-color: var(--bg-primary); border-radius: var(--radius-lg); padding: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px; align-items: end;">
+                        <div class="form-group" style="margin: 0;">
+                            <label>Voucher Prefix</label>
+                            <input type="text" id="vouch-prefix" class="form-control" placeholder="e.g. EVENT26"
+                                style="padding: 10px;">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label>Generation Count</label>
+                            <input type="number" id="vouch-count" class="form-control" placeholder="e.g. 5"
+                                style="padding: 10px;">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label>Discount Type</label>
+                            <select id="vouch-type" class="form-control" style="padding: 10px;"
+                                onchange="toggleVoucherValueField(this.value)">
+                                <option value="Percentage">Percentage (%)</option>
+                                <option value="Fixed">Fixed Amount (Rs.)</option>
+                                <option value="FreeMeal">Free Meal (100% off)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="vouch-val-container" style="margin: 0;">
+                            <label>Discount Value</label>
+                            <input type="number" id="vouch-value" class="form-control" placeholder="e.g. 15"
+                                style="padding: 10px;">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label>Restrict to Canteen</label>
+                            <select id="vouch-canteen" class="form-control" style="padding: 10px;">
+                                <option value="">-- All Canteens --</option>
+                                <option value="1">Main Canteen</option>
+                                <option value="2">Library Cafe</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label>Expiry Date</label>
+                            <input type="date" id="vouch-expiry" class="form-control" style="padding: 10px;">
+                        </div>
+                        <button class="btn btn-success" onclick="generateBulkEventVouchers()"
+                            style="padding: 12px 14px;">Generate Codes</button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Voucher Code</th>
+                                    <th>Type</th>
+                                    <th>Value</th>
+                                    <th>Location Restriction</th>
+                                    <th>Status</th>
+                                    <th>Used By (Customer)</th>
+                                    <th>Created At</th>
+                                    <th>Expiry Date</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vouchers-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NEW TAB: Portal Settings Configuration -->
+            <div id="tab-sys-settings" class="dashboard-tab-content" style="display: none;">
+                <div class="card" style="max-width: 600px;">
+                    <div style="border-bottom:1px solid var(--border); padding-bottom:12px; margin-bottom:16px;">
+                        <h2>Portal Settings Configuration</h2>
+                        <p style="color:var(--text-muted); font-size:12px;">Manage global discount policies and
+                            configuration variables.</p>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:20px;">
+                        <div
+                            style="background-color: var(--bg-primary); border-radius: var(--radius-lg); padding: 18px; display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <strong style="font-size:14px;">Student Discount Percentage (%)</strong><br>
+                                <span style="font-size:11px; color:var(--text-muted);">The overall discount percentage
+                                    auto-applied to verified Student checkouts.</span>
+                            </div>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <input type="number" id="setting-student-discount" class="form-control"
+                                    style="width: 80px; text-align:center; padding:8px;" placeholder="10">
+                                <button class="btn btn-success" style="padding: 8px 14px; width:auto; font-size:13px;"
+                                    onclick="saveStudentDiscountPercentage()">Save</button>
+                            </div>
+                        </div>
+
+                        <!-- DEV SANDBOX TOOLS CARD -->
+                        <div style="border-top:1px dashed var(--border); padding-top:20px; margin-top:10px;">
+                            <h3 style="color: var(--danger); font-size:15px; font-weight:800; margin-bottom:8px; display:flex; align-items:center; gap:6px;">🛠️ Developer Sandbox & Seed Tools</h3>
+                            <p style="font-size:11.5px; color:var(--text-muted); margin-bottom:16px;">Initialize/wipe database tables, seed test staff roles, populate canteens catalog, and inject mock transactions for easy manual verification.</p>
+                            <div style="display:flex; flex-direction:column; gap:10px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-md); gap:8px; flex-wrap:wrap;">
+                                    <div>
+                                        <strong style="font-size:13px;">1. Seed Staff Logins</strong><br>
+                                        <span style="font-size:10px; color:var(--text-muted);">manager@canteen.com, chef@canteen.com, accountant@canteen.com</span>
+                                    </div>
+                                    <button class="btn-outline" style="padding: 6px 12px; font-size:12px; width:auto; border-color:var(--primary); color:var(--primary);" onclick="devSeedStaffRoles()">Seed Staff</button>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-md); gap:8px; flex-wrap:wrap;">
+                                    <div>
+                                        <strong style="font-size:13px;">2. Seed Canteens, Items & Stock</strong><br>
+                                        <span style="font-size:10px; color:var(--text-muted);">Populate canteens, sections, categories, items, and inventory</span>
+                                    </div>
+                                    <button class="btn-outline" style="padding: 6px 12px; font-size:12px; width:auto; border-color:var(--success); color:var(--success);" onclick="devSeedCatalogData()">Seed Catalog</button>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-md); gap:8px; flex-wrap:wrap;">
+                                    <div>
+                                        <strong style="font-size:13px;">3. Generate 5 Diverse Demo Orders</strong><br>
+                                        <span style="font-size:10px; color:var(--text-muted);">Simulate cooking queue, cashier counters, and sales reports</span>
+                                    </div>
+                                    <button class="btn-outline" style="padding: 6px 12px; font-size:12px; width:auto; border-color:var(--warning); color:var(--warning);" onclick="devGenerateMockOrders()">Inject Orders</button>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-md); gap:8px; flex-wrap:wrap;">
+                                    <div>
+                                        <strong style="font-size:13px; color:var(--danger);">4. Hard Reset Database</strong><br>
+                                        <span style="font-size:10px; color:var(--text-muted);">Wipe all transaction history, log traces, feedbacks and reviews</span>
+                                    </div>
+                                    <button class="btn btn-danger" style="padding: 6px 12px; font-size:12px; width:auto;" onclick="devWipeAllDatabase()">Wipe Data</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NEW TAB: Manage Canteens (Manager Only) -->
+            <div id="tab-mgr-canteens" class="dashboard-tab-content" style="display: none;">
+                <div class="card">
+                    <div class="card-header-row">
+                        <h2>Manage Canteen Locations</h2>
+                        <button class="btn btn-success" onclick="openCanteenModal()">+ Add Canteen</button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Canteen ID</th>
+                                    <th>Canteen Name</th>
+                                    <th>Location/Address</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mgr-canteens-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- CUSTOM POPUP ALERT/CONFIRM DIALOG (No browser alert) -->
+    <div class="modal-overlay" id="custom-dialog-overlay"
+        style="z-index: 9999; display: none; align-items: center; justify-content: center;">
+        <div class="modal-card"
+            style="max-width: 380px; text-align: center; display: flex; flex-direction: column; gap: 16px; align-items: center; padding: 24px;">
+            <div id="custom-dialog-icon" style="font-size: 36px; margin-bottom: 4px;">ℹ️</div>
+            <h3 id="custom-dialog-title" style="margin: 0; font-size: 18px;">Message</h3>
+            <p id="custom-dialog-message"
+                style="margin: 0; color: var(--text-muted); font-size: 14px; line-height: 1.4;"></p>
+            <div style="display: flex; justify-content: center; gap: 12px; margin-top: 8px;">
+                <button class="btn btn-outline" id="custom-dialog-cancel-btn"
+                    style="padding: 8px 16px; font-size: 13px; width: auto; display: none;">Cancel</button>
+                <button class="btn btn-success" id="custom-dialog-ok-btn"
+                    style="padding: 8px 24px; font-size: 13px; width: auto;">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Manager Food Item Edit (with LOCAL UPLOAD input) -->
+    <div class="modal-overlay" id="item-modal-overlay">
+        <div class="modal-card">
+            <h3 id="item-modal-title">Add Canteen Item</h3>
+            <input type="hidden" id="edit-item-id">
+
+            <div class="form-group">
+                <label>Food Item Name</label>
+                <input type="text" id="edit-item-name" class="form-control" placeholder="e.g. Masala Dosa">
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Menu Section Category</label>
+                    <select id="edit-item-category" class="form-control"></select>
+                </div>
+                <div class="form-group">
+                    <label>Base Price (Rs.)</label>
+                    <input type="number" id="edit-item-price" class="form-control" placeholder="e.g. 50">
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>GST Rate Override (%)</label>
+                    <input type="number" id="edit-item-gst" class="form-control" placeholder="5.0" value="5.0"
+                        step="0.1">
+                </div>
+                <div class="form-group">
+                    <!-- spacer -->
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Discount Type</label>
+                    <select id="edit-item-discount-type" class="form-control">
+                        <option value="None">None</option>
+                        <option value="Percentage">Percentage (%)</option>
+                        <option value="Fixed">Fixed Amount (Rs.)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Discount Value</label>
+                    <input type="number" id="edit-item-discount-val" class="form-control" placeholder="0">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Ingredients Description</label>
+                <input type="text" id="edit-item-ingredients" class="form-control"
+                    placeholder="e.g. Rice batter, Potato curry, Butter">
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Availability Status</label>
+                    <select id="edit-item-status" class="form-control">
+                        <option value="Available">Available</option>
+                        <option value="Out of Stock">Out of Stock</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex-direction:row; align-items:center; gap:8px; margin-top:24px;">
+                    <input type="checkbox" id="edit-item-healthy" style="width:18px; height:18px;">
+                    <label for="edit-item-healthy">Mark Healthy Choice</label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Image Thumbnail Path/URL</label>
+                <input type="text" id="edit-item-image" class="form-control" placeholder="https://... or /uploads/...">
+            </div>
+
+            <!-- LOCAL FILE UPLOADER FOR ITEM -->
+            <div class="form-group"
+                style="border: 1px dashed var(--border); padding: 12px; border-radius: var(--radius-md); background: var(--bg-primary);">
+                <label style="font-weight: 700; color: var(--primary);">Upload Image File from Local
+                    Computer/Mobile</label>
+                <input type="file" id="edit-item-file" class="form-control" accept="image/*"
+                    onchange="uploadLocalImage(this, 'edit-item-image')">
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:12px;">
+                <button class="btn btn-outline" onclick="closeItemModal()">Cancel</button>
+                <button class="btn btn-success" onclick="saveCanteenItem()">Save Item Details</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Item Feedback Viewer -->
+    <div class="modal-overlay" id="item-reviews-modal-overlay"
+        style="z-index: 9999; display: none; align-items: center; justify-content: center;">
+        <div class="modal-card"
+            style="max-width: 500px; display: flex; flex-direction: column; gap: 16px; padding: 24px;">
+            <h3 id="item-reviews-title" style="margin: 0;">Item Reviews</h3>
+            <div class="table-responsive"
+                style="max-height: 350px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-md);">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th style="text-align: left; padding: 8px;">Customer</th>
+                            <th style="text-align: left; padding: 8px;">Rating</th>
+                            <th style="text-align: left; padding: 8px;">Comment</th>
+                        </tr>
+                    </thead>
+                    <tbody id="item-reviews-table-body"></tbody>
+                </table>
+            </div>
+            <div style="display:flex; justify-content:flex-end;">
+                <button class="btn btn-outline" style="width: auto; padding: 8px 16px;"
+                    onclick="closeItemReviewsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Manager Ad Edit (with LOCAL UPLOAD input & Ad Type) -->
+    <div class="modal-overlay" id="ad-modal-overlay">
+        <div class="modal-card">
+            <h3>Add Advertisement / Announcement</h3>
+            <div class="form-group">
+                <label>Banner Ad Title</label>
+                <input type="text" id="edit-ad-title" class="form-control"
+                    placeholder="e.g. Annual College Sports Fest">
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Ad Banner Type</label>
+                    <select id="edit-ad-type" class="form-control">
+                        <option value="Promo">Promo Discount Slider (Top Banner)</option>
+                        <option value="Announcement">College Event/Announcement (Entrance Highlight Modal)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Discount Code (If Promo Slider)</label>
+                    <input type="text" id="edit-ad-code" class="form-control" placeholder="e.g. PROMO50">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Ad Description / Announcement Details</label>
+                <input type="text" id="edit-ad-desc" class="form-control"
+                    placeholder="Details of discount promo or college announcement event...">
+            </div>
+
+            <div class="form-group">
+                <label>Image Banner Path/URL</label>
+                <input type="text" id="edit-ad-image" class="form-control" placeholder="https://... or /uploads/...">
+            </div>
+
+            <!-- LOCAL FILE UPLOADER FOR AD -->
+            <div class="form-group"
+                style="border: 1px dashed var(--border); padding: 12px; border-radius: var(--radius-md); background: var(--bg-primary);">
+                <label style="font-weight: 700; color: var(--primary);">Upload Image File from Local
+                    Computer/Mobile</label>
+                <input type="file" id="edit-ad-file" class="form-control" accept="image/*"
+                    onchange="uploadLocalImage(this, 'edit-ad-image')">
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:12px;">
+                <button class="btn btn-outline" onclick="closeAdModal()">Cancel</button>
+                <button class="btn btn-success" onclick="saveAdvertisementAd()">Publish Ad</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Canteen Section (Menu) creation -->
+    <div class="modal-overlay" id="section-modal-overlay">
+        <div class="modal-card">
+            <h3 id="section-modal-title">Create Canteen Section</h3>
+            <input type="hidden" id="edit-section-id">
+            <div class="form-group">
+                <label>Section Name</label>
+                <input type="text" id="edit-section-name" class="form-control" placeholder="e.g. Snacks Section">
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="edit-section-active" class="form-control">
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Assign to Canteen Location</label>
+                    <select id="edit-section-canteen" class="form-control">
+                        <option value="1">Main Canteen</option>
+                        <option value="2">Library Cafe</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:12px;">
+                <button class="btn btn-outline" onclick="closeSectionModal()">Cancel</button>
+                <button class="btn btn-success" onclick="saveCanteenSection()">Save Section</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Canteen creation / editing -->
+    <div class="modal-overlay" id="canteen-modal-overlay">
+        <div class="modal-card">
+            <h3 id="canteen-modal-title">Create Canteen Location</h3>
+            <input type="hidden" id="edit-canteen-id">
+            <div class="form-group">
+                <label>Canteen Name</label>
+                <input type="text" id="edit-canteen-name" class="form-control" placeholder="e.g. Main Food Court">
+            </div>
+            <div class="form-group">
+                <label>Location Details</label>
+                <input type="text" id="edit-canteen-location" class="form-control"
+                    placeholder="e.g. Ground Floor, Block A">
+            </div>
+            <div class="form-group">
+                <label>Status</label>
+                <select id="edit-canteen-active" class="form-control">
+                    <option value="1">Active</option>
+                    <option value="0">Inactive</option>
+                </select>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:12px;">
+                <button class="btn btn-outline" onclick="closeCanteenModal()">Cancel</button>
+                <button class="btn btn-success" onclick="saveCanteenLocation()">Save Canteen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Category creation -->
+    <div class="modal-overlay" id="category-modal-overlay">
+        <div class="modal-card">
+            <h3 id="category-modal-title">Create Category</h3>
+            <input type="hidden" id="edit-category-id">
+            <div class="form-group">
+                <label>Category Name</label>
+                <input type="text" id="edit-category-name" class="form-control" placeholder="e.g. Hot Brews">
+            </div>
+            <div class="form-group">
+                <label>Assign to Canteen Section</label>
+                <select id="edit-category-section" class="form-control"></select>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:12px;">
+                <button class="btn btn-outline" onclick="closeCategoryModal()">Cancel</button>
+                <button class="btn btn-success" onclick="saveCategory()">Save Category</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Staff User Creation -->
+    <div class="modal-overlay" id="staff-modal-overlay">
+        <div class="modal-card">
+            <h3 id="staff-modal-title">Register Canteen Staff Account</h3>
+            <input type="hidden" id="edit-staff-id-field">
+
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" id="edit-staff-name" class="form-control" placeholder="e.g. Chef Robert">
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Email Address (User Login)</label>
+                    <input type="email" id="edit-staff-email" class="form-control"
+                        placeholder="e.g. chef123@canteen.com">
+                </div>
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input type="tel" id="edit-staff-phone" class="form-control" placeholder="e.g. 9876543210">
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>System Access Role</label>
+                    <select id="edit-staff-role" class="form-control">
+                        <!-- populated -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Assign to Canteen Location</label>
+                    <select id="edit-staff-canteen" class="form-control">
+                        <!-- populated dynamically -->
+                    </select>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Account Status</label>
+                    <select id="edit-staff-status" class="form-control">
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <!-- spacer -->
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Account Password</label>
+                <input type="password" id="edit-staff-password" class="form-control"
+                    placeholder="Leave empty to keep existing password">
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:12px;">
+                <button class="btn btn-outline" onclick="closeStaffModal()">Cancel</button>
+                <button class="btn btn-success" onclick="saveStaffAccount()">Save Staff Account</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Chef Stock creation -->
+    <div class="modal-overlay" id="stock-modal-overlay">
+        <div class="modal-card">
+            <h3>Add Inventory Ingredient</h3>
+            <div class="form-group">
+                <label>Ingredient Name</label>
+                <input type="text" id="edit-stock-name" class="form-control" placeholder="e.g. Potatoes">
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Initial Stock Count</label>
+                    <input type="number" id="edit-stock-qty" class="form-control" placeholder="10">
+                </div>
+                <div class="form-group">
+                    <label>Unit Measure</label>
+                    <input type="text" id="edit-stock-unit" class="form-control" placeholder="e.g. kg, liters, packets">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Warning Alert Threshold (Min Level)</label>
+                <input type="number" id="edit-stock-threshold" class="form-control" placeholder="e.g. 5">
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:12px;">
+                <button class="btn btn-outline" onclick="closeStockModal()">Cancel</button>
+                <button class="btn btn-success" onclick="saveInventoryIngredient()">Save Stock Entry</button>
+            </div>
+        </div>
+    <!-- MODAL: Change Password (Self-Service) -->
+    <div class="modal-overlay" id="change-password-modal-overlay" style="z-index: 9999; display: none; align-items: center; justify-content: center;">
+        <div class="modal-card" style="max-width: 400px; display: flex; flex-direction: column; gap: 16px; padding: 24px;">
+            <h3 style="margin: 0;">Change Password</h3>
+            <div class="form-group" style="margin: 0;">
+                <label>Current Password</label>
+                <input type="password" id="self-current-password" class="form-control" placeholder="Current Password" style="padding: 10px;">
+            </div>
+            <div class="form-group" style="margin: 0;">
+                <label>New Password</label>
+                <input type="password" id="self-new-password" class="form-control" placeholder="New Password" style="padding: 10px;">
+            </div>
+            <div class="form-group" style="margin: 0;">
+                <label>Confirm New Password</label>
+                <input type="password" id="self-confirm-password" class="form-control" placeholder="Confirm New Password" style="padding: 10px;">
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:12px; margin-top: 8px;">
+                <button class="btn btn-outline" style="width: auto; padding: 8px 16px;" onclick="closeChangePasswordModal()">Cancel</button>
+                <button class="btn btn-success" style="width: auto; padding: 8px 16px;" onclick="saveSelfPassword()">Update Password</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client Scripting -->
+    <script>
+        const API_URL = (() => {
+            const cfg = window.APP_CONFIG && window.APP_CONFIG.STAFF_API_URL;
+            if (cfg && !cfg.includes('localhost')) return cfg;
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                return cfg || 'http://localhost:5001/api/staff';
+            }
+            return `${window.location.origin}/api/staff`;
+        })();
+
+        const SOCKET_URL = (() => {
+            const cfg = window.APP_CONFIG && window.APP_CONFIG.SOCKET_URL;
+            if (cfg && !cfg.includes('localhost')) return cfg;
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                return cfg || 'http://localhost:5000';
+            }
+            return window.location.origin;
+        })();
+
+        let socket;
+        let staffSession = null;
+        let activeTabId = null;
+
+        // Caches
+        let mgrItems = [];
+        let mgrCategories = [];
+        let mgrMenus = [];
+        let chefStock = [];
+        let activeOrders = [];
+        let staffAccounts = [];
+        let rolesList = [];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSavedSession();
+            setupSocketConnection();
+            loadLoginChefSections();
+            populateCanteensDropdowns();
+        });
+
+        function getAuthHeaders() {
+            const headers = { 'Content-Type': 'application/json' };
+            const token = staffSession && staffSession.token ? staffSession.token : (localStorage.getItem('staff_token') || null);
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            return headers;
+        }
+
+        // Monkey-patch fetch to automatically attach auth headers for API calls
+        (function () {
+            const origFetch = window.fetch.bind(window);
+            window.fetch = (input, init = {}) => {
+                try {
+                    const url = typeof input === 'string' ? input : input.url;
+                    if (typeof url === 'string' && url.startsWith(API_URL)) {
+                        init.headers = Object.assign({}, getAuthHeaders(), init.headers || {});
+                    }
+                } catch (e) { }
+                return origFetch(input, init);
+            };
+        })();
+
+        function setupSocketConnection() {
+            socket = io(SOCKET_URL);
+
+            socket.on('connect', () => {
+                console.log("Staff connected to Socket Server on " + SOCKET_URL);
+                if (staffSession) joinSocketRoles();
+            });
+
+            socket.on('NEW_CASH_APPROVAL_REQUEST', (data) => {
+                if (staffSession && staffSession.role === 'Accountant') {
+                    showWebNotification("Cash Approval", `Order #${data.order_id} requires cash clearance.`);
+                    loadCashApprovals();
+                }
+            });
+
+            socket.on('CASH_APPROVAL_COMPLETED', (data) => {
+                if (staffSession && staffSession.role === 'Accountant') loadCashApprovals();
+            });
+
+            socket.on('NEW_KITCHEN_ORDER', (data) => {
+                if (staffSession && staffSession.role === 'Chef') {
+                    showWebNotification("New Cooking Order", `Order #${data.orderId} added to KDS.`);
+                    loadKitchenQueue();
+                }
+            });
+
+            socket.on('ITEM_PREPARED', (data) => {
+                // Add to bell and show big message for customer-facing events
+                addNotificationToBell(data.title || 'Item Prepared', data.message || 'Item ready');
+                playBellSound();
+                if (staffSession && staffSession.role === 'Accountant') loadCashApprovals();
+                if (staffSession && staffSession.role === 'Chef') loadKitchenQueue();
+            });
+
+            socket.on('NOTIFICATION', (data) => {
+                addNotificationToBell(data.title || 'Notification', data.message || 'You have a new notification');
+                playBellSound();
+            });
+
+            socket.on('KITCHEN_QUEUE_UPDATED', (data) => {
+                if (staffSession && staffSession.role === 'Chef' && data.sectionId == staffSession.chefSectionId) {
+                    loadKitchenQueue();
+                }
+            });
+        }
+
+        function joinSocketRoles() {
+            if (!socket) return;
+            if (staffSession.role === 'Chef') {
+                socket.emit('JOIN_KITCHEN', staffSession.chefSectionId);
+            } else if (staffSession.role === 'Accountant') {
+                socket.emit('JOIN_CASHIER');
+            }
+        }
+
+        function showWebNotification(title, message) {
+            // In-app toast / native notification
+            if (Notification.permission === 'granted') {
+                try { new Notification(title, { body: message }); } catch (e) { }
+            }
+            // Also add to bell list and play sound
+            addNotificationToBell(title, message);
+            playBellSound();
+        }
+
+        function addNotificationToBell(title, message) {
+            const list = document.getElementById('notif-list');
+            const el = document.createElement('div');
+            el.style.padding = '8px';
+            el.style.borderBottom = '1px solid var(--border)';
+            el.innerHTML = `<div style="font-weight:700;">${title}</div><div style="font-size:12px; color:var(--text-muted);">${message}</div>`;
+            list.prepend(el);
+            const countEl = document.getElementById('notif-count');
+            let count = parseInt(countEl.innerText || '0');
+            count = isNaN(count) ? 1 : count + 1;
+            countEl.innerText = count;
+            countEl.style.display = 'inline-block';
+        }
+
+        function toggleNotifDropdown() {
+            const d = document.getElementById('notif-dropdown');
+            d.style.display = d.style.display === 'block' ? 'none' : 'block';
+            if (d.style.display === 'block') {
+                // mark read
+                document.getElementById('notif-count').style.display = 'none';
+                document.getElementById('notif-count').innerText = '0';
+            }
+        }
+
+        function clearNotifList() {
+            document.getElementById('notif-list').innerHTML = '';
+            document.getElementById('notif-count').style.display = 'none';
+            document.getElementById('notif-count').innerText = '0';
+        }
+
+        function playBellSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.type = 'sine';
+                o.frequency.value = 880;
+                o.connect(g);
+                g.connect(ctx.destination);
+                o.start();
+                g.gain.setValueAtTime(0.0001, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.01);
+                g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
+                o.stop(ctx.currentTime + 0.6);
+            } catch (e) { /* ignore */ }
+        }
+
+        function changeTheme(themeName) {
+            document.documentElement.setAttribute('data-theme', themeName);
+            localStorage.setItem('staff_theme', themeName);
+        }
+
+        function loadSavedSession() {
+            const savedTheme = localStorage.getItem('staff_theme') || 'light';
+            document.getElementById('themeSelector').value = savedTheme;
+            changeTheme(savedTheme);
+
+            const savedStaff = localStorage.getItem('staff_session');
+            if (savedStaff) {
+                staffSession = JSON.parse(savedStaff);
+                const savedToken = localStorage.getItem('staff_token');
+                if (savedToken) staffSession.token = savedToken;
+                showDashboardScreen();
+            }
+        }
+
+        // DYNAMIC CHEF STATIONS LOGINS POPULATION
+        async function loadLoginChefSections() {
+            try {
+                const res = await fetch(`${API_URL}/auth/sections`);
+                const data = await res.json();
+                if (data.success) {
+                    const select = document.getElementById('login-chef-section');
+                    select.innerHTML = data.sections.map(s => `
+                        <option value="${s.menu_id}">${s.canteen_name || 'Canteen'} - ${s.menu_name}</option>
+                    `).join('');
+
+                    window.sectionNamesMap = {};
+                    data.sections.forEach(s => {
+                        window.sectionNamesMap[s.menu_id] = s.menu_name;
+                    });
+                }
+            } catch (e) {
+                console.error("Failed to load chef login sections:", e);
+            }
+        }
+
+        async function loginStaff() {
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value.trim();
+            const chefSectionId = document.getElementById('login-chef-section').value;
+
+            if (!email || !password) {
+                alert("Please enter credentials.");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    staffSession = data.staff;
+                    // persist token for authenticated requests
+                    if (data.token) {
+                        staffSession.token = data.token;
+                        localStorage.setItem('staff_token', data.token);
+                    }
+                    if (staffSession.role === 'Chef') {
+                        staffSession.chefSectionId = parseInt(chefSectionId);
+                        const chefSectionName = window.sectionNamesMap && window.sectionNamesMap[chefSectionId]
+                            ? window.sectionNamesMap[chefSectionId]
+                            : 'Kitchen Section';
+                        staffSession.chefSectionName = chefSectionName;
+                    }
+                    localStorage.setItem('staff_session', JSON.stringify(staffSession));
+
+                    joinSocketRoles();
+                    showDashboardScreen();
+                } else {
+                    alert(data.error || "Authentication failed");
+                }
+            } catch (err) {
+                alert("Error connecting to login server: " + err.message);
+            }
+        }
+
+        function logoutStaff() {
+            staffSession = null;
+            localStorage.removeItem('staff_session');
+            localStorage.removeItem('staff_token');
+            document.getElementById('view-dashboard').style.display = 'none';
+            document.getElementById('logout-btn').style.display = 'none';
+            document.getElementById('staff-role-badge').style.display = 'none';
+            document.getElementById('view-login').style.display = 'flex';
+        }
+
+        function showDashboardScreen() {
+            document.getElementById('view-login').style.display = 'none';
+            document.getElementById('view-dashboard').style.display = 'grid';
+            document.getElementById('logout-btn').style.display = 'block';
+
+            const badge = document.getElementById('staff-role-badge');
+            badge.innerText = staffSession.role === 'Chef' ? `Chef (${staffSession.chefSectionName})` : staffSession.role;
+            badge.style.display = 'inline-block';
+
+            // Reset sidebars groups & button displays
+            document.getElementById('group-catalog').style.display = 'none';
+            document.getElementById('group-kitchen').style.display = 'none';
+            document.getElementById('group-accountant').style.display = 'none';
+            document.getElementById('group-staff-admin').style.display = 'none';
+            document.querySelectorAll('.sidebar-btn').forEach(btn => btn.style.display = 'block');
+
+            if (staffSession.role === 'Manager' || staffSession.role === 'Admin') {
+                document.getElementById('group-catalog').style.display = 'flex';
+                document.getElementById('group-staff-admin').style.display = 'flex';
+                document.querySelector('#group-catalog .sidebar-btn').click();
+            } else if (staffSession.role === 'Event Manager') {
+                // Event Coordinators only see section configuration, categories, event ads, and vouchers
+                document.getElementById('group-catalog').style.display = 'flex';
+                document.querySelectorAll('#group-catalog .sidebar-btn').forEach(btn => {
+                    if (btn.innerText.includes('Food Catalog Items')) {
+                        btn.style.display = 'none';
+                    }
+                });
+                const visibleBtns = Array.from(document.querySelectorAll('#group-catalog .sidebar-btn')).filter(btn => btn.style.display !== 'none');
+                if (visibleBtns.length > 0) visibleBtns[0].click();
+            } else if (staffSession.role === 'Chef') {
+                document.getElementById('group-kitchen').style.display = 'flex';
+                document.getElementById('chef-kds-station-badge').innerText = staffSession.chefSectionName;
+                document.getElementById('chef-kds-title').innerText = `${staffSession.chefSectionName} - Cooking Queue`;
+                document.querySelector('#group-kitchen .sidebar-btn').click();
+            } else if (staffSession.role === 'Accountant') {
+                document.getElementById('group-accountant').style.display = 'flex';
+                document.querySelector('#group-accountant .sidebar-btn').click();
+            }
+        }
+
+        function switchTab(tabId, sidebarBtn) {
+            activeTabId = tabId;
+            document.querySelectorAll('.dashboard-tab-content').forEach(tab => tab.style.display = 'none');
+            document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active'));
+
+            document.getElementById(tabId).style.display = 'block';
+            if (sidebarBtn) sidebarBtn.classList.add('active');
+
+            if (tabId === 'tab-mgr-items') loadManagerItems();
+            else if (tabId === 'tab-mgr-canteens') loadManagerCanteens();
+            else if (tabId === 'tab-mgr-sections') loadManagerSections();
+            else if (tabId === 'tab-mgr-categories') loadManagerCategories();
+            else if (tabId === 'tab-mgr-ads') loadManagerAds();
+            else if (tabId === 'tab-mgr-staff') loadStaffAccounts();
+            else if (tabId === 'tab-mgr-feedback') loadCustomerFeedback();
+            else if (tabId === 'tab-mgr-logs') loadAuditLogs();
+            else if (tabId === 'tab-chef-kds') loadKitchenQueue();
+            else if (tabId === 'tab-chef-stock') loadInventorySupplies();
+            else if (tabId === 'tab-chef-recipes') loadRecipeSeedingSelectors();
+            else if (tabId === 'tab-acct-cash') loadCashApprovals();
+            else if (tabId === 'tab-acct-upi') loadUpiApprovals();
+            else if (tabId === 'tab-acct-reports') loadFinancialReports();
+            else if (tabId === 'tab-acct-archive') loadArchiveBrowserDetails();
+            else if (tabId === 'tab-mgr-vouchers') loadVouchersList();
+            else if (tabId === 'tab-sys-settings') loadSystemSettings();
+        }
+
+        // DYNAMIC LOCAL FILE IMAGE UPLOADER (Multer Middleware)
+        async function uploadLocalImage(fileInput, targetUrlInputId) {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const targetInput = document.getElementById(targetUrlInputId);
+            const originalVal = targetInput.value;
+            targetInput.value = "Uploading to local uploads directory...";
+
+            try {
+                // Upload path mounted at '/api/upload' on Port 5001 (which is window.location.port)
+                const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    targetInput.value = data.filePath; // Saved relative file path like '/uploads/1723491029.png'
+                    alert("Image successfully uploaded and path assigned!");
+                } else {
+                    alert("Image upload failed: " + data.error);
+                    targetInput.value = originalVal;
+                }
+            } catch (err) {
+                alert("Upload failed. Connection error: " + err.message);
+                targetInput.value = originalVal;
+            }
+        }
+
+        // MANAGER TAB 1: Food items catalog
+        async function loadManagerItems() {
+            try {
+                const res = await fetch(`${API_URL}/items/list`);
+                const data = await res.json();
+                if (data.success) {
+                    mgrItems = data.items;
+                    mgrCategories = data.categories;
+
+                    const tbody = document.getElementById('mgr-items-table-body');
+                    tbody.innerHTML = mgrItems.map(item => `
+                        <tr>
+                            <td>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <img src="${item.image_url}" style="width:40px; height:40px; object-fit:cover; border-radius:4px;">
+                                    <div>
+                                        <strong>${item.item_name}</strong><br>
+                                        <span style="font-size:11px; color:var(--text-muted);">${item.ingredients}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>${item.menu_name}</td>
+                            <td>${item.category_name}</td>
+                            <td>Rs. ${item.price.toFixed(2)} <span style="font-size:9.5px; color:var(--text-muted);">(GST:${item.gst_percentage !== undefined ? item.gst_percentage : 5.0}%)</span></td>
+                            <td>
+                                ${item.discount_type !== 'None' ? `<span class="badge badge-success">${item.discount_type} (${item.discount_value})</span>` : '<span style="color:var(--text-muted);">No Discount</span>'}
+                            </td>
+                            <td>
+                                <a href="javascript:void(0)" onclick="viewItemReviews(${item.item_id}, '${item.item_name.replace(/'/g, "\\'")}')" style="text-decoration:none; display:inline-block; font-weight:700;">
+                                    ${item.rating_count > 0 ? `<span style="color:var(--warning);">★ ${item.avg_rating.toFixed(1)}</span> <span style="font-size:11px; color:var(--text-muted); font-weight:400;">(${item.rating_count})</span>` : '<span style="color:#ccc; font-size:11px; font-weight:400;">No reviews</span>'}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge ${item.item_status === 'Available' ? 'badge-success' : 'badge-danger'}">${item.item_status}</span>
+                            </td>
+                            <td>
+                                <div style="display:flex; gap:6px;">
+                                    <button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="openItemModalForEdit(${item.item_id})">Edit</button>
+                                    <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteCanteenItem(${item.item_id})">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+
+                    const select = document.getElementById('edit-item-category');
+                    select.innerHTML = mgrCategories.map(cat => `
+                         <option value="${cat.category_id}">${cat.menu_name} &rarr; ${cat.category_name}</option>
+                     `).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function openItemModal() {
+            document.getElementById('item-modal-title').innerText = "Add Food Item";
+            document.getElementById('edit-item-id').value = '';
+            document.getElementById('edit-item-name').value = '';
+            document.getElementById('edit-item-price').value = '';
+            document.getElementById('edit-item-gst').value = '5.0';
+            document.getElementById('edit-item-ingredients').value = '';
+            document.getElementById('edit-item-discount-type').value = 'None';
+            document.getElementById('edit-item-discount-val').value = '0';
+            document.getElementById('edit-item-image').value = '';
+            document.getElementById('edit-item-status').value = 'Available';
+            document.getElementById('edit-item-healthy').checked = false;
+            document.getElementById('edit-item-file').value = ''; // Reset file input
+            document.getElementById('item-modal-overlay').style.display = 'flex';
+        }
+
+        function openItemModalForEdit(itemId) {
+            const item = mgrItems.find(i => i.item_id === itemId);
+            if (!item) return;
+
+            document.getElementById('item-modal-title').innerText = "Edit Food Item";
+            document.getElementById('edit-item-id').value = item.item_id;
+            document.getElementById('edit-item-name').value = item.item_name;
+            document.getElementById('edit-item-category').value = item.category_id;
+            document.getElementById('edit-item-price').value = item.price;
+            document.getElementById('edit-item-gst').value = item.gst_percentage !== undefined ? item.gst_percentage : '5.0';
+            document.getElementById('edit-item-ingredients').value = item.ingredients;
+            document.getElementById('edit-item-discount-type').value = item.discount_type;
+            document.getElementById('edit-item-discount-val').value = item.discount_value;
+            document.getElementById('edit-item-image').value = item.image_url;
+            document.getElementById('edit-item-status').value = item.item_status;
+            document.getElementById('edit-item-healthy').checked = item.is_healthy === 1;
+            document.getElementById('edit-item-file').value = '';
+
+            document.getElementById('item-modal-overlay').style.display = 'flex';
+        }
+
+        function closeItemModal() {
+            document.getElementById('item-modal-overlay').style.display = 'none';
+        }
+
+        async function saveCanteenItem() {
+            const id = document.getElementById('edit-item-id').value;
+            const name = document.getElementById('edit-item-name').value.trim();
+            const category = document.getElementById('edit-item-category').value;
+            const price = parseFloat(document.getElementById('edit-item-price').value);
+            const gstPercentage = parseFloat(document.getElementById('edit-item-gst').value || 5.0);
+            const ingredients = document.getElementById('edit-item-ingredients').value.trim();
+            const discountType = document.getElementById('edit-item-discount-type').value;
+            const discountVal = parseFloat(document.getElementById('edit-item-discount-val').value || 0);
+            const image = document.getElementById('edit-item-image').value.trim();
+            const status = document.getElementById('edit-item-status').value;
+            const healthy = document.getElementById('edit-item-healthy').checked;
+
+            if (!name || isNaN(price)) {
+                alert("Please fill in item details.");
+                return;
+            }
+
+            const payload = {
+                category_id: parseInt(category),
+                item_name: name,
+                price: price,
+                gst_percentage: gstPercentage,
+                ingredients: ingredients,
+                discount_type: discountType,
+                discount_value: discountVal,
+                image_url: image || '/uploads/default_food.png',
+                is_healthy: healthy,
+                item_status: status,
+                staff_id: staffSession.staff_id
+            };
+
+            const endpoint = id ? `items/edit/${id}` : 'items/add';
+
+            try {
+                const res = await fetch(`${API_URL}/${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    closeItemModal();
+                    loadManagerItems();
+                } else {
+                    alert(data.error);
+                }
+            } catch (e) {
+                alert("Error saving item: " + e.message);
+            }
+        }
+
+        async function deleteCanteenItem(itemId) {
+            if (!(await showStaffConfirm("Delete Item", "Are you sure you want to delete this food item?"))) return;
+            try {
+                const res = await fetch(`${API_URL}/items/delete/${itemId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ staff_id: staffSession.staff_id })
+                });
+                const data = await res.json();
+                if (data.success) loadManagerItems();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        // NEW MANAGER TAB 1B: Canteen Sections (Menus) Management
+        async function loadManagerSections() {
+            try {
+                const res = await fetch(`${API_URL}/items/menus/all`);
+                const data = await res.json();
+                if (data.success) {
+                    mgrMenus = data.menus;
+                    const tbody = document.getElementById('mgr-sections-table-body');
+                    tbody.innerHTML = mgrMenus.map(m => `
+                         <tr>
+                             <td>#${m.menu_id}</td>
+                             <td><strong>${m.menu_name}</strong></td>
+                             <td>${m.canteen_name || '<span style="color:var(--text-muted);">Global</span>'}</td>
+                             <td>
+                                 <span class="badge ${m.is_active === 1 ? 'badge-success' : 'badge-danger'}">
+                                     ${m.is_active === 1 ? 'Active' : 'Inactive'}
+                                 </span>
+                             </td>
+                             <td>
+                                 <div style="display:flex; gap:6px;">
+                                     <button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="openSectionModalForEdit(${m.menu_id})">Edit</button>
+                                     <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteCanteenSection(${m.menu_id})">Delete</button>
+                                 </div>
+                             </td>
+                         </tr>
+                     `).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function openSectionModal() {
+            document.getElementById('edit-section-id').value = '';
+            document.getElementById('edit-section-name').value = '';
+            document.getElementById('edit-section-active').value = '1';
+            document.getElementById('edit-section-canteen').value = '1';
+            document.getElementById('section-modal-overlay').style.display = 'flex';
+        }
+
+        function openSectionModalForEdit(id) {
+            const menu = mgrMenus.find(m => m.menu_id === id);
+            if (!menu) return;
+            document.getElementById('edit-section-id').value = menu.menu_id;
+            document.getElementById('edit-section-name').value = menu.menu_name;
+            document.getElementById('edit-section-active').value = menu.is_active.toString();
+            document.getElementById('edit-section-canteen').value = menu.canteen_id || '1';
+            document.getElementById('section-modal-overlay').style.display = 'flex';
+        }
+
+        function closeSectionModal() {
+            document.getElementById('section-modal-overlay').style.display = 'none';
+        }
+
+        async function saveCanteenSection() {
+            const id = document.getElementById('edit-section-id').value;
+            const name = document.getElementById('edit-section-name').value.trim();
+            const active = parseInt(document.getElementById('edit-section-active').value);
+            const canteenId = parseInt(document.getElementById('edit-section-canteen').value || 1);
+
+            if (!name) {
+                alert("Please enter Section name.");
+                return;
+            }
+
+            const payload = { menu_name: name, is_active: active, canteen_id: canteenId, staff_id: staffSession.staff_id };
+            const endpoint = id ? `items/menus/edit/${id}` : 'items/menus/add';
+
+            try {
+                const res = await fetch(`${API_URL}/${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    closeSectionModal();
+                    loadManagerSections();
+                } else {
+                    alert(data.error);
+                }
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        async function deleteCanteenSection(id) {
+            if (!(await showStaffConfirm("Delete Section", "Deleting this section will orphan its items. Confirm delete?"))) return;
+            try {
+                const res = await fetch(`${API_URL}/items/menus/delete/${id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ staff_id: staffSession.staff_id })
+                });
+                const data = await res.json();
+                if (data.success) loadManagerSections();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        // NEW MANAGER TAB 1C: Food Categories Management
+        async function loadManagerCategories() {
+            try {
+                const res = await fetch(`${API_URL}/items/categories/all`);
+                const data = await res.json();
+
+                // Fetch menus for selection dropdowns
+                const mRes = await fetch(`${API_URL}/items/menus/all`);
+                const mData = await mRes.json();
+
+                if (data.success && mData.success) {
+                    mgrMenus = mData.menus;
+                    const tbody = document.getElementById('mgr-categories-table-body');
+                    tbody.innerHTML = data.categories.map(c => `
+                        <tr>
+                            <td>#${c.category_id}</td>
+                            <td><strong>${c.category_name}</strong></td>
+                            <td>${c.menu_name}</td>
+                            <td>
+                                <div style="display:flex; gap:6px;">
+                                    <button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="openCategoryModalForEdit(${c.category_id})">Edit</button>
+                                    <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteCategory(${c.category_id})">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+
+                    // Populate select options
+                    const select = document.getElementById('edit-category-section');
+                    select.innerHTML = mgrMenus.map(m => `
+                        <option value="${m.menu_id}">${m.menu_name}</option>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function openCategoryModal() {
+            document.getElementById('edit-category-id').value = '';
+            document.getElementById('edit-category-name').value = '';
+            document.getElementById('category-modal-overlay').style.display = 'flex';
+        }
+
+        async function openCategoryModalForEdit(id) {
+            try {
+                const res = await fetch(`${API_URL}/items/categories/all`);
+                const data = await res.json();
+                if (data.success) {
+                    const cat = data.categories.find(c => c.category_id === id);
+                    if (!cat) return;
+                    document.getElementById('edit-category-id').value = cat.category_id;
+                    document.getElementById('edit-category-name').value = cat.category_name;
+                    document.getElementById('edit-category-section').value = cat.menu_id;
+                    document.getElementById('category-modal-overlay').style.display = 'flex';
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function closeCategoryModal() {
+            document.getElementById('category-modal-overlay').style.display = 'none';
+        }
+
+        async function saveCategory() {
+            const id = document.getElementById('edit-category-id').value;
+            const name = document.getElementById('edit-category-name').value.trim();
+            const sectionId = document.getElementById('edit-category-section').value;
+
+            if (!name || !sectionId) {
+                alert("Please fill in Category details.");
+                return;
+            }
+
+            const payload = { category_name: name, menu_id: parseInt(sectionId), staff_id: staffSession.staff_id };
+            const endpoint = id ? `items/categories/edit/${id}` : 'items/categories/add';
+
+            try {
+                const res = await fetch(`${API_URL}/${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    closeCategoryModal();
+                    loadManagerCategories();
+                } else {
+                    alert(data.error);
+                }
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        async function deleteCategory(id) {
+            if (!(await showStaffConfirm("Delete Category", "Are you sure you want to delete this category?"))) return;
+            try {
+                const res = await fetch(`${API_URL}/items/categories/delete/${id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ staff_id: staffSession.staff_id })
+                });
+                const data = await res.json();
+                if (data.success) loadManagerCategories();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        // MANAGER TAB 2: Ads management (includes type and uploads)
+        async function loadManagerAds() {
+            try {
+                const res = await fetch(`${API_URL}/ads/list`);
+                const data = await res.json();
+                if (data.success) {
+                    const tbody = document.getElementById('mgr-ads-table-body');
+                    tbody.innerHTML = data.ads.map(ad => `
+                        <tr>
+                            <td>
+                                <img src="${ad.image_url}" style="width:50px; height:35px; object-fit:cover; border-radius:4px;">
+                            </td>
+                            <td><strong>${ad.title}</strong></td>
+                            <td>
+                                <span class="badge ${ad.ad_type === 'Announcement' ? 'badge-warning' : 'badge-primary'}">${ad.ad_type || 'Promo'}</span>
+                            </td>
+                            <td>${ad.description}</td>
+                            <td>${ad.discount_code || '<span style="color:var(--text-muted);">None</span>'}</td>
+                            <td>
+                                <span class="badge ${ad.is_active === 1 ? 'badge-success' : 'badge-danger'}">${ad.is_active === 1 ? 'Active' : 'Disabled'}</span>
+                            </td>
+                            <td>
+                                <div style="display:flex; gap:6px;">
+                                    <button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="toggleAdStatus(${ad.ad_id}, ${ad.is_active === 1 ? 0 : 1})">
+                                        ${ad.is_active === 1 ? 'Disable' : 'Enable'}
+                                    </button>
+                                    <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteAdCampaign(${ad.ad_id})">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function openAdModal() {
+            document.getElementById('edit-ad-title').value = '';
+            document.getElementById('edit-ad-desc').value = '';
+            document.getElementById('edit-ad-code').value = '';
+            document.getElementById('edit-ad-image').value = '';
+            document.getElementById('edit-ad-type').value = 'Promo';
+            document.getElementById('edit-ad-file').value = '';
+            document.getElementById('ad-modal-overlay').style.display = 'flex';
+        }
+
+        function closeAdModal() {
+            document.getElementById('ad-modal-overlay').style.display = 'none';
+        }
+
+        async function saveAdvertisementAd() {
+            const title = document.getElementById('edit-ad-title').value.trim();
+            const desc = document.getElementById('edit-ad-desc').value.trim();
+            const code = document.getElementById('edit-ad-code').value.trim();
+            const image = document.getElementById('edit-ad-image').value.trim();
+            const type = document.getElementById('edit-ad-type').value;
+
+            if (!title) {
+                alert("Please enter title.");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/ads/add`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title,
+                        description: desc,
+                        discount_code: code,
+                        image_url: image || '/uploads/default_ad.png',
+                        ad_type: type,
+                        staff_id: staffSession.staff_id
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    closeAdModal();
+                    loadManagerAds();
+                }
+            } catch (e) {
+                alert(e.message);
+            }
+        }
+
+        async function toggleAdStatus(adId, isActiveVal) {
+            try {
+                const res = await fetch(`${API_URL}/ads/toggle/${adId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_active: isActiveVal, staff_id: staffSession.staff_id })
+                });
+                const data = await res.json();
+                if (data.success) loadManagerAds();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        async function deleteAdCampaign(adId) {
+            if (!(await showStaffConfirm("Delete Ad Campaign", "Delete ad campaign?"))) return;
+            try {
+                const res = await fetch(`${API_URL}/ads/delete/${adId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ staff_id: staffSession.staff_id })
+                });
+                const data = await res.json();
+                if (data.success) loadManagerAds();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        // NEW MANAGER TAB 2B: Staff User Accounts Management
+        async function loadStaffAccounts() {
+            try {
+                const res = await fetch(`${API_URL}/auth/list`);
+                const data = await res.json();
+                if (data.success) {
+                    staffAccounts = data.staffList;
+                    rolesList = data.roles;
+
+                    const tbody = document.getElementById('mgr-staff-table-body');
+                    tbody.innerHTML = staffAccounts.map(s => `
+                        <tr>
+                            <td><strong>${s.full_name}</strong></td>
+                            <td>${s.email}</td>
+                            <td>${s.phone}</td>
+                            <td><span class="badge badge-primary">${s.role_name}</span></td>
+                            <td>${s.canteen_name || '<span style="color:var(--text-muted);">Global (All)</span>'}</td>
+                            <td>
+                                <span class="badge ${s.status === 'Active' ? 'badge-success' : 'badge-danger'}">
+                                    ${s.status}
+                                </span>
+                            </td>
+                            <td>
+                                <div style="display:flex; gap:6px;">
+                                    <button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="openStaffModalForEdit(${s.staff_id})">Edit</button>
+                                    <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteStaffAccount(${s.staff_id})">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+
+                    const select = document.getElementById('edit-staff-role');
+                    select.innerHTML = rolesList.map(r => `
+                        <option value="${r.role_id}">${r.role_name}</option>
+                    `).join('');
+
+                    const canteenSelect = document.getElementById('edit-staff-canteen');
+                    if (canteenSelect) {
+                        canteenSelect.innerHTML = '<option value="">-- No Canteen (Global/Manager) --</option>' + mgrCanteens.map(c => `
+                            <option value="${c.canteen_id}">${c.canteen_name}</option>
+                        `).join('');
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function openStaffModal() {
+            document.getElementById('edit-staff-id-field').value = '';
+            document.getElementById('edit-staff-name').value = '';
+            document.getElementById('edit-staff-email').value = '';
+            document.getElementById('edit-staff-phone').value = '';
+            document.getElementById('edit-staff-password').placeholder = "Enter Password";
+            document.getElementById('edit-staff-status').value = 'Active';
+            document.getElementById('edit-staff-canteen').value = '';
+            document.getElementById('staff-modal-overlay').style.display = 'flex';
+        }
+
+        function openStaffModalForEdit(id) {
+            const staff = staffAccounts.find(s => s.staff_id === id);
+            if (!staff) return;
+
+            document.getElementById('edit-staff-id-field').value = staff.staff_id;
+            document.getElementById('edit-staff-name').value = staff.full_name;
+            document.getElementById('edit-staff-email').value = staff.email;
+            document.getElementById('edit-staff-phone').value = staff.phone;
+            document.getElementById('edit-staff-role').value = staff.role_id;
+            document.getElementById('edit-staff-status').value = staff.status;
+            document.getElementById('edit-staff-canteen').value = staff.canteen_id || '';
+            document.getElementById('edit-staff-password').placeholder = "Leave empty to keep existing password";
+
+            document.getElementById('staff-modal-overlay').style.display = 'flex';
+        }
+
+        function closeStaffModal() {
+            document.getElementById('staff-modal-overlay').style.display = 'none';
+        }
+
+        async function saveStaffAccount() {
+            const id = document.getElementById('edit-staff-id-field').value;
+            const name = document.getElementById('edit-staff-name').value.trim();
+            const email = document.getElementById('edit-staff-email').value.trim();
+            const phone = document.getElementById('edit-staff-phone').value.trim();
+            const role = document.getElementById('edit-staff-role').value;
+            const canteen = document.getElementById('edit-staff-canteen').value;
+            const status = document.getElementById('edit-staff-status').value;
+            const password = document.getElementById('edit-staff-password').value.trim();
+
+            if (!name || !email || !phone || (!id && !password)) {
+                alert("Please fill in all mandatory staff details.");
+                return;
+            }
+
+            const payload = {
+                role_id: parseInt(role),
+                canteen_id: canteen ? parseInt(canteen) : null,
+                full_name: name,
+                email: email,
+                phone: phone,
+                status: status,
+                password: password,
+                staff_id: staffSession.staff_id
+            };
+
+            const endpoint = id ? `auth/edit/${id}` : 'auth/add';
+
+            try {
+                const res = await fetch(`${API_URL}/${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    closeStaffModal();
+                    loadStaffAccounts();
+                } else {
+                    alert(data.error);
+                }
+            } catch (e) {
+                alert(e.message);
+            }
+        }
+
+        async function deleteStaffAccount(id) {
+            if (parseInt(id) === staffSession.staff_id) {
+                alert("You cannot delete your own logged-in account!");
+                return;
+            }
+            if (!(await showStaffConfirm("Delete Staff", "Are you sure you want to delete this staff user?"))) return;
+
+            try {
+                const res = await fetch(`${API_URL}/auth/delete/${id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ staff_id: staffSession.staff_id })
+                });
+                const data = await res.json();
+                if (data.success) loadStaffAccounts();
+                else alert(data.error);
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        // NEW MANAGER TAB 2C: Customer Reviews & Rating Feedback lists
+        async function loadCustomerFeedback() {
+            try {
+                const res = await fetch(`${API_URL}/feedback/list`);
+                const data = await res.json();
+
+                if (data.success) {
+                    // Render Item/Order Star Ratings
+                    const ratingTbody = document.getElementById('mgr-ratings-table-body');
+                    if (data.ratings.length === 0) {
+                        ratingTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted);">No stars ratings yet.</td></tr>';
+                    } else {
+                        ratingTbody.innerHTML = data.ratings.map(r => `
+                            <tr>
+                                <td><strong>${r.customer_name}</strong></td>
+                                <td>${r.item_name ? `Item: <strong>${r.item_name}</strong>` : `Section: <strong>${r.menu_name || 'Service'}</strong>`}</td>
+                                <td><span style="color:var(--warning); font-weight:700;">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</span></td>
+                                <td style="font-size:12px; color:var(--text-muted);">${r.review || '<span style="color:#ccc;">No comment</span>'}</td>
+                            </tr>
+                        `).join('');
+                    }
+
+                    // Render General Suggestions
+                    const feedbackTbody = document.getElementById('mgr-feedback-table-body');
+                    if (data.generalFeedback.length === 0) {
+                        feedbackTbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No suggestions submitted.</td></tr>';
+                    } else {
+                        feedbackTbody.innerHTML = data.generalFeedback.map(f => `
+                            <tr>
+                                <td><strong>${f.customer_name}</strong></td>
+                                <td style="font-size:11px; color:var(--text-muted);">${new Date(f.created_at).toLocaleDateString()}</td>
+                                <td style="font-size:12.5px; color:var(--text-main);">${f.message}</td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // TAB 3: Manager Logs loader
+        async function loadAuditLogs() {
+            try {
+                const res = await fetch(`${API_URL}/logs/list`);
+                const data = await res.json();
+                if (data.success) {
+                    const tbody = document.getElementById('mgr-logs-table-body');
+                    tbody.innerHTML = data.logs.map(log => `
+                        <tr>
+                            <td style="white-space:nowrap; color:var(--text-muted); font-size:12px;">${new Date(log.timestamp).toLocaleString()}</td>
+                            <td><span class="badge ${log.user_type === 'Staff' ? 'badge-primary' : 'badge-success'}">${log.user_type}</span></td>
+                            <td>ID:${log.user_id}</td>
+                            <td style="font-weight:600;">${log.action}</td>
+                            <td style="font-size:13px; color:var(--text-muted);">${log.details}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // TAB 4: Chef queue loader (KDS)
+        async function loadKitchenQueue() {
+            if (!staffSession || staffSession.role !== 'Chef') return;
+            const container = document.getElementById('chef-kds-cards-container');
+
+            try {
+                const res = await fetch(`${API_URL}/orders/kitchen-queue/${staffSession.chefSectionId}`);
+                const data = await res.json();
+
+                if (data.success) {
+                    const queue = data.queue;
+                    if (queue.length === 0) {
+                        container.innerHTML = '<p style="text-align:center; padding: 40px; color:var(--text-muted); grid-column: 1/-1;">🍳 Active queue is empty. Kitchen is caught up!</p>';
+                        return;
+                    }
+
+                    const groupedOrders = {};
+                    queue.forEach(item => {
+                        if (!groupedOrders[item.order_id]) {
+                            groupedOrders[item.order_id] = {
+                                order_id: item.order_id,
+                                customer_name: item.customer_name,
+                                customer_category: item.customer_category,
+                                created_at: item.created_at,
+                                items: []
+                            };
+                        }
+                        groupedOrders[item.order_id].items.push(item);
+                    });
+
+                    let cardsHtml = '';
+                    for (const orderId in groupedOrders) {
+                        const orderObj = groupedOrders[orderId];
+                        const dateObj = new Date(orderObj.created_at);
+                        const minsAgo = Math.floor((new Date() - dateObj) / 60000);
+                        const isUrgent = minsAgo > 10;
+
+                        let itemsListHtml = '';
+                        orderObj.items.forEach(it => {
+                            itemsListHtml += `
+                                <div class="kds-item-line">
+                                    <span><strong>${it.quantity}x</strong> ${it.item_name}</span>
+                                    <button class="btn btn-success" style="padding:4px 10px; font-size:12px;" onclick="markItemAsPrepared(${it.order_item_id}, ${it.order_id})">Prepared</button>
+                                </div>
+                            `;
+                        });
+
+                        cardsHtml += `
+                            <div class="kds-card ${isUrgent ? 'urgent' : ''}">
+                                <div class="kds-header">
+                                    <div>
+                                        <h4 style="font-weight:800;">Order #${orderObj.order_id}</h4>
+                                        <span class="badge badge-primary" style="margin-top:4px;">${orderObj.customer_name} (${orderObj.customer_category})</span>
+                                    </div>
+                                    <span style="font-size:12px; font-weight:700; color:${isUrgent ? 'var(--danger)' : 'var(--text-muted)'};">${minsAgo}m ago</span>
+                                </div>
+                                <div style="display:flex; flex-direction:column; gap:4px;">
+                                    ${itemsListHtml}
+                                </div>
+                            </div>
+                        `;
+                    }
+                    container.innerHTML = cardsHtml;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function markItemAsPrepared(orderItemId, orderId) {
+            try {
+                const res = await fetch(`${API_URL}/orders/item-prepared`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        order_item_id: orderItemId,
+                        order_id: orderId,
+                        staff_id: staffSession.staff_id
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    loadKitchenQueue();
+                    if (data.order_ready) {
+                        alert(`Order #${orderId} has been fully prepared. Pickup alert fired to customer.`);
+                    }
+                }
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        // TAB 5: Chef Stocks
+        async function loadInventorySupplies() {
+            try {
+                const res = await fetch(`${API_URL}/inventory/list`);
+                const data = await res.json();
+                if (data.success) {
+                    chefStock = data.inventory;
+                    const tbody = document.getElementById('chef-stock-table-body');
+
+                    tbody.innerHTML = chefStock.map(stock => {
+                        const isLow = stock.quantity < stock.min_threshold;
+                        return `
+                            <tr style="${isLow ? 'background-color:rgba(239, 68, 68, 0.05);' : ''}">
+                                <td><strong>${stock.supply_name}</strong></td>
+                                <td style="font-weight:700; color:${isLow ? 'var(--danger)' : 'var(--success)'};">${stock.quantity.toFixed(2)}</td>
+                                <td>${stock.min_threshold.toFixed(2)}</td>
+                                <td style="color:var(--text-muted); font-size:12px;">${stock.unit}</td>
+                                <td>
+                                    ${isLow ? '<span class="badge badge-danger">Low Stock Warning</span>' : '<span class="badge badge-success">Sufficient</span>'}
+                                </td>
+                                <td>
+                                    <div style="display:flex; gap:6px;">
+                                        <button class="btn btn-outline" style="padding:4px 8px; font-size:12px;" onclick="promptRestockSupply(${stock.supply_id}, '${stock.supply_name}', '${stock.unit}')">Add Stock</button>
+                                        <button class="btn btn-warning" style="padding:4px 8px; font-size:12px;" onclick="promptAdjustThreshold(${stock.supply_id}, '${stock.supply_name}', ${stock.min_threshold})">Threshold</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function openStockModal() {
+            document.getElementById('edit-stock-name').value = '';
+            document.getElementById('edit-stock-qty').value = '';
+            document.getElementById('edit-stock-unit').value = '';
+            document.getElementById('edit-stock-threshold').value = '';
+            document.getElementById('stock-modal-overlay').style.display = 'flex';
+        }
+
+        function closeStockModal() {
+            document.getElementById('stock-modal-overlay').style.display = 'none';
+        }
+
+        async function saveInventoryIngredient() {
+            const name = document.getElementById('edit-stock-name').value.trim();
+            const qty = parseFloat(document.getElementById('edit-stock-qty').value);
+            const unit = document.getElementById('edit-stock-unit').value.trim();
+            const threshold = parseFloat(document.getElementById('edit-stock-threshold').value);
+
+            if (!name || isNaN(qty) || !unit || isNaN(threshold)) {
+                alert("Please fill in valid ingredient values.");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/inventory/add-supply`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        supply_name: name,
+                        quantity: qty,
+                        unit: unit,
+                        min_threshold: threshold,
+                        staff_id: staffSession.staff_id
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    closeStockModal();
+                    loadInventorySupplies();
+                }
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        async function promptRestockSupply(id, name, unit) {
+            const amt = prompt(`Enter restock supply amount of ${name} (${unit}):`, "10");
+            if (amt === null || isNaN(parseFloat(amt))) return;
+
+            try {
+                const res = await fetch(`${API_URL}/inventory/update-supply`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        supply_id: id,
+                        quantity: parseFloat(amt),
+                        mode: 'add',
+                        staff_id: staffSession.staff_id
+                    })
+                });
+                const data = await res.json();
+                if (data.success) loadInventorySupplies();
+            } catch (e) {
+                alert(e.message);
+            }
+        }
+
+        async function promptAdjustThreshold(id, name, oldVal) {
+            const val = prompt(`Adjust warning threshold of ${name}:`, oldVal);
+            if (val === null || isNaN(parseFloat(val))) return;
+
+            try {
+                const res = await fetch(`${API_URL}/inventory/set-threshold`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        supply_id: id,
+                        min_threshold: parseFloat(val),
+                        staff_id: staffSession.staff_id
+                    })
+                });
+                const data = await res.json();
+                if (data.success) loadInventorySupplies();
+            } catch (e) {
+                alert(e.message);
+            }
+        }
+
+        // TAB 6: Chef Recipes mapper
+        async function loadRecipeSeedingSelectors() {
+            const select = document.getElementById('recipe-item-select');
+            select.innerHTML = '<option value="">-- Select Canteen Food Item --</option>';
+
+            try {
+                const res = await fetch(`${API_URL}/items/list`);
+                const data = await res.json();
+                if (data.success) {
+                    select.innerHTML += data.items.map(item => `
+                        <option value="${item.item_id}">${item.menu_name} &rarr; ${item.item_name}</option>
+                    `).join('');
+
+                    const sRes = await fetch(`${API_URL}/inventory/list`);
+                    const sData = await sRes.json();
+                    if (sData.success) chefStock = sData.inventory;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function loadRecipeIngredientsMapping(itemId) {
+            const list = document.getElementById('recipe-ingredients-list');
+            list.innerHTML = '';
+            if (!itemId) return;
+
+            try {
+                const res = await fetch(`${API_URL}/inventory/item-supplies/${itemId}`);
+                const data = await res.json();
+
+                if (data.success) {
+                    const currentMap = data.ingredients;
+                    let listHtml = '';
+                    chefStock.forEach(stock => {
+                        const match = currentMap.find(m => m.supply_id === stock.supply_id);
+                        const quantityVal = match ? match.quantity_required : 0;
+
+                        listHtml += `
+                            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:8px;">
+                                <div style="flex:1;">
+                                    <strong>${stock.supply_name}</strong><br>
+                                    <span style="font-size:11px; color:var(--text-muted);">Stock: ${stock.quantity} ${stock.unit}</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <input type="number" step="0.01" class="form-control recipe-qty-input" data-supply-id="${stock.supply_id}" value="${quantityVal}" style="width:90px;" placeholder="0.0">
+                                    <span style="font-size:12px; color:var(--text-muted); min-width:45px;">${stock.unit}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    list.innerHTML = listHtml;
+                }
+            } catch (err) {
+                list.innerHTML = '<p style="color:var(--danger)">Failed to load recipes.</p>';
+            }
+        }
+
+        async function saveRecipeIngredientsFormula() {
+            const itemId = document.getElementById('recipe-item-select').value;
+            if (!itemId) {
+                alert("Please select item.");
+                return;
+            }
+
+            const ingredients = [];
+            document.querySelectorAll('.recipe-qty-input').forEach(input => {
+                const val = parseFloat(input.value || 0);
+                if (val > 0) {
+                    ingredients.push({
+                        supply_id: parseInt(input.getAttribute('data-supply-id')),
+                        quantity_required: val
+                    });
+                }
+            });
+
+            try {
+                const res = await fetch(`${API_URL}/inventory/save-item-supplies`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        item_id: parseInt(itemId),
+                        ingredients,
+                        staff_id: staffSession.staff_id
+                    })
+                });
+                const data = await res.json();
+                if (data.success) alert("Recipe mapped successfully!");
+            } catch (e) {
+                alert(e.message);
+            }
+        }
+
+        // TAB 7: Cash approvals
+        async function loadCashApprovals() {
+            try {
+                const canteenParam = staffSession && staffSession.canteen_id ? `?canteen_id=${staffSession.canteen_id}` : '';
+                const res = await fetch(`${API_URL}/orders/active${canteenParam}`);
+                const data = await res.json();
+                if (data.success) {
+                    activeOrders = data.orders;
+                    // Combine cash awaiting and UPI awaiting settlement
+                    const approvals = activeOrders.filter(o => o.order_status === 'AWAITING_CASH_APPROVAL' || (o.payment_type === 'UPI' && (o.payment_status === 'Awaiting Settlement' || o.payment_status === 'Pending')));
+                    const tbody = document.getElementById('acct-cash-table-body');
+
+                    if (approvals.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--text-muted);">No approvals awaiting settlement.</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = approvals.map(order => {
+                        const itemsSummary = order.items ? order.items.map(i => `${i.quantity}x ${i.item_name}`).join('<br>') : '';
+                        return `
+                        <tr style="background:${order.payment_type === 'UPI' ? '#fff7e6' : 'transparent'};">
+                            <td><strong>#${order.order_id}</strong></td>
+                            <td>${order.full_name}</td>
+                            <td>${order.customer_category}</td>
+                            <td style="max-width:320px; font-size:13px;">${itemsSummary}</td>
+                            <td style="font-weight:700; color:var(--primary);">Rs. ${order.total_amount.toFixed(2)}</td>
+                            <td><span style="font-weight:800; color:${order.payment_type === 'Cash' ? 'var(--warning)' : 'var(--primary)'}">${order.payment_type}</span></td>
+                            <td>
+                                <div style="display:flex; gap:8px;">
+                                    <button class="btn btn-success" style="padding:6px 12px; font-size:12px; width:auto;" onclick="settleApproval(${order.order_id})">Settle & Approve</button>
+                                    <button class="btn btn-danger" style="padding:6px 12px; font-size:12px; width:auto;" onclick="cancelUnpaidCashOrder(${order.order_id})">Cancel</button>
+                                </div>
+                            </td>
+                        </tr>`;
+                    }).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function settleApproval(orderId) {
+            // Decide endpoint by transaction type: call settle endpoint which handles both
+            try {
+                const res = await fetch(`${API_URL}/orders/approve-settlement`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ order_id: orderId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    loadCashApprovals();
+                    alert(`Order #${orderId} settled and forwarded to kitchen.`);
+                } else {
+                    alert(data.error || 'Failed to settle');
+                }
+            } catch (e) { alert(e.message); }
+        }
+
+        async function loadUpiApprovals() {
+            try {
+                const canteenParam = staffSession && staffSession.canteen_id ? `?canteen_id=${staffSession.canteen_id}` : '';
+                const res = await fetch(`${API_URL}/orders/active${canteenParam}`);
+                const data = await res.json();
+                if (data.success) {
+                    activeOrders = data.orders;
+                    const upiAwaiting = activeOrders.filter(o => o.payment_type === 'UPI' && (o.payment_status === 'Awaiting Settlement' || o.payment_status === 'Pending'));
+                    const tbody = document.getElementById('acct-upi-table-body');
+
+                    if (upiAwaiting.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">🔔 No UPI settlements awaiting accountant.</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = upiAwaiting.map(order => {
+                        const itemsSummary = order.items ? order.items.map(i => `${i.quantity}x ${i.item_name}`).join(', ') : '';
+                        return `
+                            <tr style="background:${order.payment_type === 'UPI' ? '#fff7e6' : 'transparent'};">
+                                <td><strong>#${order.order_id}</strong></td>
+                                <td>${order.full_name}</td>
+                                <td style="max-width:320px;">${itemsSummary}</td>
+                                <td style="font-weight:700; color:var(--primary);">Rs. ${order.total_amount.toFixed(2)}</td>
+                                <td>
+                                    <div style="display:flex; gap:8px;">
+                                        <button class="btn btn-success" style="padding:6px 12px; font-size:12px;" onclick="approveUpiClearance(${order.order_id})">Settle & Approve</button>
+                                        <button class="btn btn-danger" style="padding:6px 12px; font-size:12px;" onclick="cancelUnpaidCashOrder(${order.order_id})">Cancel</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function approveUpiClearance(orderId) {
+            try {
+                const res = await fetch(`${API_URL}/orders/approve-settlement`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ order_id: orderId, staff_id: staffSession.staff_id })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    loadUpiApprovals();
+                    alert(`Order #${orderId} settled and forwarded to kitchen.`);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (err) { alert(err.message); }
+        }
+
+        async function approveCashClearance(orderId) {
+            try {
+                const res = await fetch(`${API_URL}/orders/approve-cash`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ order_id: orderId, staff_id: staffSession.staff_id })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    loadCashApprovals();
+                    alert(`Order #${orderId} payment clearance successful.`);
+                }
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        async function cancelUnpaidCashOrder(orderId) {
+            if (!(await showStaffConfirm("Cancel Order", `Cancel Order #${orderId} (unpaid) and restore stocks?`))) return;
+            try {
+                const res = await fetch(`${API_URL}/orders/cancel-order`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ order_id: orderId, staff_id: staffSession.staff_id })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    loadCashApprovals();
+                    alert(`Order #${orderId} has been successfully cancelled and stocks restored.`);
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        // TAB 8: Accountant financial reports
+        async function loadFinancialReports() {
+            try {
+                const canteenParam = staffSession && staffSession.canteen_id ? `?canteen_id=${staffSession.canteen_id}` : '';
+                const res = await fetch(`${API_URL}/reports/earnings${canteenParam}`);
+                const data = await res.json();
+
+                if (data.success) {
+                    const analytics = data.analytics;
+
+                    document.getElementById('acct-stat-revenue').innerText = `Rs. ${analytics.gross_revenue.toFixed(2)}`;
+                    document.getElementById('acct-stat-transactions').innerText = analytics.total_transactions;
+                    document.getElementById('acct-stat-ticket').innerText = `Rs. ${analytics.avg_order_value.toFixed(2)}`;
+
+                    const sectionBody = document.getElementById('acct-section-sales-body');
+                    if (analytics.section_sales.length === 0) {
+                        sectionBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No sales.</td></tr>';
+                    } else {
+                        sectionBody.innerHTML = analytics.section_sales.map(s => `
+                            <tr>
+                                <td><strong>${s.menu_name}</strong></td>
+                                <td>${s.items_sold} units</td>
+                                <td style="font-weight:700; color:var(--success);">Rs. ${s.sales.toFixed(2)}</td>
+                            </tr>
+                        `).join('');
+                    }
+
+                    const methodBody = document.getElementById('acct-method-sales-body');
+                    if (analytics.payment_methods.length === 0) {
+                        methodBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No records.</td></tr>';
+                    } else {
+                        methodBody.innerHTML = analytics.payment_methods.map(p => `
+                            <tr>
+                                <td><strong>${p.payment_type}</strong></td>
+                                <td>${p.count} sells</td>
+                                <td style="font-weight:700; color:var(--primary);">Rs. ${p.sales.toFixed(2)}</td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+
+                const tRes = await fetch(`${API_URL}/reports/transactions${canteenParam}`);
+                const tData = await tRes.json();
+                if (tData.success) {
+                    const txs = tData.transactions;
+                    const tbody = document.getElementById('acct-transactions-body');
+                    tbody.innerHTML = txs.map(tx => {
+                        const pcolor = tx.payment_type === 'Cash' ? 'var(--warning)' : 'var(--primary)';
+                        return `
+                        <tr>
+                            <td>TXN-${tx.transaction_id}</td>
+                            <td>#${tx.order_id}</td>
+                            <td>${tx.customer_name} (${tx.customer_category})</td>
+                            <td>${tx.total_item_amount.toFixed(2)}</td>
+                            <td style="color:var(--success);">${tx.discount_amount > 0 ? `-Rs.${tx.discount_amount.toFixed(2)}` : '0.0'}</td>
+                            <td>Rs. ${tx.gst_amount.toFixed(2)}</td>
+                            <td style="font-weight:700;">Rs. ${tx.total_payable.toFixed(2)}</td>
+                            <td><span style="font-weight:800; color:${pcolor};">${tx.payment_type}</span></td>
+                            <td>
+                                <span class="badge ${tx.payment_status === 'Success' ? 'badge-success' : 'badge-danger'}">${tx.payment_status}</span>
+                            </td>
+                        </tr>`;
+                    }).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // NEW TAB FUNCTIONS: Vouchers & Settings Editor
+        function toggleVoucherValueField(val) {
+            const container = document.getElementById('vouch-val-container');
+            const input = document.getElementById('vouch-value');
+            if (val === 'FreeMeal') {
+                container.style.opacity = '0.5';
+                input.disabled = true;
+                input.value = '0';
+            } else {
+                container.style.opacity = '1';
+                input.disabled = false;
+                input.value = '';
+            }
+        }
+
+        async function loadVouchersList() {
+            try {
+                const res = await fetch(`${API_URL}/vouchers/list`);
+                const data = await res.json();
+                if (data.success) {
+                    const tbody = document.getElementById('vouchers-table-body');
+                    if (data.vouchers.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px; color:var(--text-muted);">No event vouchers generated yet.</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = data.vouchers.map(v => `
+                        <tr>
+                            <td><strong style="color:var(--primary); font-family:monospace; font-size:14px;">${v.voucher_code}</strong></td>
+                            <td>${v.discount_type}</td>
+                            <td>${v.discount_type === 'FreeMeal' ? 'Free Meal' : v.discount_value}</td>
+                            <td>${v.canteen_name || '<span style="color:var(--text-muted);">Global</span>'}</td>
+                            <td>
+                                <span class="badge ${v.is_used === 1 ? 'badge-danger' : 'badge-success'}">
+                                    ${v.is_used === 1 ? 'Used' : 'Unused'}
+                                </span>
+                            </td>
+                            <td>${v.customer_name || '<span style="color:var(--text-muted);">-</span>'}</td>
+                            <td style="font-size:11px; color:var(--text-muted);">${new Date(v.created_at).toLocaleDateString()}</td>
+                            <td style="font-size:11px;">${v.expiry_date ? new Date(v.expiry_date).toLocaleDateString() : '<span style="color:var(--text-muted);">No Expiry</span>'}</td>
+                            <td>
+                                ${v.is_used === 0 ? `<button class="btn btn-danger" style="padding:4px 8px; font-size:11px; width:auto;" onclick="deleteUnusedVoucher('${v.voucher_code}')">Delete</button>` : '<span style="color:#ccc;">-</span>'}
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function generateBulkEventVouchers() {
+            const prefix = document.getElementById('vouch-prefix').value.trim();
+            const count = parseInt(document.getElementById('vouch-count').value);
+            const discount_type = document.getElementById('vouch-type').value;
+            const discount_value = parseFloat(document.getElementById('vouch-value').value || 0);
+            const canteen_id = document.getElementById('vouch-canteen').value;
+            const expiry_date = document.getElementById('vouch-expiry').value;
+
+            if (!prefix || isNaN(count) || count <= 0) {
+                alert("Please fill in prefix and count.");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/vouchers/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prefix, count, discount_type, discount_value, canteen_id, expiry_date, staff_id: staffSession.staff_id
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(data.message);
+                    document.getElementById('vouch-prefix').value = '';
+                    document.getElementById('vouch-count').value = '';
+                    document.getElementById('vouch-value').value = '';
+                    document.getElementById('vouch-expiry').value = '';
+                    loadVouchersList();
+                } else {
+                    alert(data.error);
+                }
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        async function deleteUnusedVoucher(code) {
+            if (!(await showStaffConfirm("Delete Voucher", `Are you sure you want to delete unused voucher ${code}?`))) return;
+            try {
+                const res = await fetch(`${API_URL}/vouchers/delete/${code}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ staff_id: staffSession.staff_id })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    loadVouchersList();
+                } else {
+                    alert(data.error);
+                }
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        async function loadSystemSettings() {
+            try {
+                const res = await fetch(`${API_URL}/settings/all`);
+                const data = await res.json();
+                if (data.success) {
+                    const studentDiscount = data.settings.find(s => s.key === 'student_discount_percentage');
+                    if (studentDiscount) {
+                        document.getElementById('setting-student-discount').value = parseFloat(studentDiscount.value);
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function saveStudentDiscountPercentage() {
+            const val = parseFloat(document.getElementById('setting-student-discount').value);
+            if (isNaN(val) || val < 0 || val > 100) {
+                alert("Please enter a valid percentage discount (0-100).");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/settings/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        key: 'student_discount_percentage',
+                        value: val,
+                        staff_id: staffSession.staff_id
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert("Student discount configuration updated successfully!");
+                    loadSystemSettings();
+                } else {
+                    alert(data.error);
+                }
+            } catch (e) {
+                alert(e.message);
+            }
+        }
+
+        async function devSeedStaffRoles() {
+            const confirmed = await showStaffConfirm("Seed Staff Logins", "This will wipe all existing staff accounts and seed fresh developer testing accounts. Are you sure?");
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch(`${API_URL}/dev/seed-staff`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    alert(data.message);
+                } else {
+                    alert("Seeding failed: " + data.error);
+                }
+            } catch (e) {
+                alert("Error connecting: " + e.message);
+            }
+        }
+
+        async function devSeedCatalogData() {
+            const confirmed = await showStaffConfirm("Seed Catalog & Inventory", "This will wipe all canteens, sections, categories, items, and inventory, and seed fresh default values. Are you sure?");
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch(`${API_URL}/dev/seed-catalog`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    alert(data.message);
+                } else {
+                    alert("Seeding failed: " + data.error);
+                }
+            } catch (e) {
+                alert("Error connecting: " + e.message);
+            }
+        }
+
+        async function devGenerateMockOrders() {
+            const confirmed = await showStaffConfirm("Generate Mock Orders", "This will inject 5 test orders in diverse states (Preparing, Awaiting Cash, Completed) to test staff dashboards. Are you sure?");
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch(`${API_URL}/dev/generate-mock-orders`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    alert(data.message);
+                } else {
+                    alert("Order generation failed: " + data.error);
+                }
+            } catch (e) {
+                alert("Error connecting: " + e.message);
+            }
+        }
+
+        async function devWipeAllDatabase() {
+            const confirmed = await showStaffConfirm("Hard Reset", "This will clear all transactions, orders, logs, ratings, and feedbacks. This cannot be undone! Are you sure?");
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch(`${API_URL}/dev/wipe-db`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    alert(data.message);
+                } else {
+                    alert("Wipe failed: " + data.error);
+                }
+            } catch (e) {
+                alert("Error connecting: " + e.message);
+            }
+        }
+
+        // TAB 9: Archival
+        async function loadArchiveBrowserDetails() {
+            try {
+                const res = await fetch(`${API_URL}/archive/files`);
+                const data = await res.json();
+                if (data.success) {
+                    const selector = document.getElementById('archive-files-selector');
+                    selector.innerHTML = '<option value="">-- No archive selected --</option>';
+                    data.files.forEach(file => {
+                        const sizeKb = (file.size / 1024).toFixed(1);
+                        selector.innerHTML += `
+                            <option value="${file.filename}">${file.filename} (${sizeKb} KB) - ${new Date(file.created_at).toLocaleDateString()}</option>
+                        `;
+                    });
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function executeDatabaseArchivePurge() {
+            const days = document.getElementById('archive-threshold-days').value;
+            if (!(await showStaffConfirm("Archive & Purge", `Confirm database archive older than ${days} days?`))) return;
+
+            try {
+                const res = await fetch(`${API_URL}/archive/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ days: parseInt(days), staff_id: staffSession.staff_id })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(data.message);
+                    loadArchiveBrowserDetails();
+                } else {
+                    alert(data.message || "No records match criteria.");
+                }
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        async function queryHistoricalArchive(filename) {
+            const resultsBox = document.getElementById('archive-query-results');
+            if (!filename) {
+                resultsBox.style.display = 'none';
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/archive/query`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    document.getElementById('archive-summary-revenue').innerText = `Rs. ${data.summary.gross_revenue.toFixed(2)}`;
+                    document.getElementById('archive-summary-txs').innerText = data.summary.total_transactions;
+
+                    const tbody = document.getElementById('archive-tx-table-body');
+                    tbody.innerHTML = data.transactions.map(tx => {
+                        const pcolor = tx.payment_type === 'Cash' ? 'var(--warning)' : 'var(--primary)';
+                        return `
+                        <tr>
+                            <td>#${tx.order_id}</td>
+                            <td>Rs. ${tx.total_payable.toFixed(2)}</td>
+                            <td><span style="font-weight:800; color:${pcolor};">${tx.payment_type}</span></td>
+                            <td><span class="badge badge-success">${tx.payment_status}</span></td>
+                        </tr>`;
+                    }).join('');
+
+                    resultsBox.style.display = 'block';
+                }
+            } catch (e) {
+                alert(e.message);
+            }
+        }
+
+        // ==========================================
+        // CANTEEN LOCATIONS MANAGEMENT
+        // ==========================================
+        async function loadManagerCanteens() {
+            try {
+                const res = await fetch(`${API_URL}/canteens/all`, { headers: getAuthHeaders() });
+                const data = await res.json();
+                if (data.success) {
+                    mgrCanteens = data.canteens;
+                    const tbody = document.getElementById('mgr-canteens-table-body');
+                    tbody.innerHTML = mgrCanteens.map(c => `
+                        <tr>
+                            <td>#${c.canteen_id}</td>
+                            <td><strong>${c.canteen_name}</strong></td>
+                            <td>${c.location || '<span style="color:var(--text-muted);">-</span>'}</td>
+                            <td>
+                                <span class="badge ${c.is_active === 1 ? 'badge-success' : 'badge-danger'}">
+                                    ${c.is_active === 1 ? 'Active' : 'Inactive'}
+                                </span>
+                            </td>
+                            <td>
+                                <div style="display:flex; gap:6px;">
+                                    <button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="openCanteenModalForEdit(${c.canteen_id})">Edit</button>
+                                    <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteCanteenLocation(${c.canteen_id})">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function openCanteenModal() {
+            document.getElementById('canteen-modal-title').innerText = "Create Canteen Location";
+            document.getElementById('edit-canteen-id').value = '';
+            document.getElementById('edit-canteen-name').value = '';
+            document.getElementById('edit-canteen-location').value = '';
+            document.getElementById('edit-canteen-active').value = '1';
+            document.getElementById('canteen-modal-overlay').style.display = 'flex';
+        }
+
+        function openCanteenModalForEdit(id) {
+            const canteen = mgrCanteens.find(c => c.canteen_id === id);
+            if (!canteen) return;
+            document.getElementById('canteen-modal-title').innerText = "Edit Canteen Location";
+            document.getElementById('edit-canteen-id').value = canteen.canteen_id;
+            document.getElementById('edit-canteen-name').value = canteen.canteen_name;
+            document.getElementById('edit-canteen-location').value = canteen.location || '';
+            document.getElementById('edit-canteen-active').value = canteen.is_active.toString();
+            document.getElementById('canteen-modal-overlay').style.display = 'flex';
+        }
+
+        function closeCanteenModal() {
+            document.getElementById('canteen-modal-overlay').style.display = 'none';
+        }
+
+        async function saveCanteenLocation() {
+            const id = document.getElementById('edit-canteen-id').value;
+            const name = document.getElementById('edit-canteen-name').value.trim();
+            const location = document.getElementById('edit-canteen-location').value.trim();
+            const active = parseInt(document.getElementById('edit-canteen-active').value);
+
+            if (!name) {
+                alert("Please enter Canteen name.");
+                return;
+            }
+
+            const payload = { canteen_name: name, location: location, is_active: active, staff_id: staffSession.staff_id };
+            const endpoint = id ? `canteens/edit/${id}` : 'canteens/add';
+
+            try {
+                const res = await fetch(`${API_URL}/${endpoint}`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    closeCanteenModal();
+                    loadManagerCanteens();
+                    populateCanteensDropdowns();
+                } else {
+                    alert(data.error);
+                }
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        async function deleteCanteenLocation(id) {
+            if (!(await showStaffConfirm("Delete Canteen Location", "Deleting this canteen location will orphan associated sections and staff. Confirm delete?"))) return;
+            try {
+                const res = await fetch(`${API_URL}/canteens/delete/${id}`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ staff_id: staffSession.staff_id })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    loadManagerCanteens();
+                    populateCanteensDropdowns();
+                } else {
+                    alert(data.error);
+                }
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        async function populateCanteensDropdowns() {
+            try {
+                const res = await fetch(`${API_URL}/canteens/all`, { headers: getAuthHeaders() });
+                const data = await res.json();
+                if (data.success) {
+                    mgrCanteens = data.canteens;
+
+                    // Populate edit-section-canteen selector
+                    const sectionCant = document.getElementById('edit-section-canteen');
+                    if (sectionCant) {
+                        sectionCant.innerHTML = mgrCanteens.map(c => `
+                            <option value="${c.canteen_id}">${c.canteen_name}</option>
+                        `).join('');
+                    }
+
+                    // Populate vouch-canteen selector
+                    const vouchCant = document.getElementById('vouch-canteen');
+                    if (vouchCant) {
+                        vouchCant.innerHTML = '<option value="">-- All Canteens --</option>' + mgrCanteens.map(c => `
+                            <option value="${c.canteen_id}">${c.canteen_name}</option>
+                        `).join('');
+                    }
+
+                    // Populate staff registration canteen selector
+                    const staffCant = document.getElementById('edit-staff-canteen');
+                    if (staffCant) {
+                        staffCant.innerHTML = '<option value="">-- No Canteen (Global/Manager) --</option>' + mgrCanteens.map(c => `
+                            <option value="${c.canteen_id}">${c.canteen_name}</option>
+                        `).join('');
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to populate canteens list:", err);
+            }
+        }
+
+        // ==========================================
+        // CUSTOM POPUP ALERT & CONFIRM SYSTEMS
+        // ==========================================
+        async function viewItemReviews(itemId, itemName) {
+            document.getElementById('item-reviews-title').innerText = `Reviews & Feedbacks for "${itemName}"`;
+            const tbody = document.getElementById('item-reviews-table-body');
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding: 12px;">Loading reviews...</td></tr>';
+            document.getElementById('item-reviews-modal-overlay').style.display = 'flex';
+
+            try {
+                const res = await fetch(`${API_URL}/items/ratings/${itemId}`);
+                const data = await res.json();
+                if (data.success) {
+                    if (data.reviews.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding: 20px;">No reviews submitted yet for this item.</td></tr>';
+                    } else {
+                        tbody.innerHTML = data.reviews.map(r => `
+                            <tr>
+                                <td style="padding: 8px;"><strong>${r.customer_name || 'Anonymous Student'}</strong></td>
+                                <td style="padding: 8px;"><span style="color:var(--warning); font-weight:700;">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</span></td>
+                                <td style="padding: 8px; font-size:12.5px; color:var(--text-main);">${r.review || '<span style="color:#ccc;">No comment</span>'}</td>
+                            </tr>
+                        `).join('');
+                    }
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--danger); padding: 12px;">${data.error}</td></tr>`;
+                }
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--danger); padding: 12px;">${err.message}</td></tr>`;
+            }
+        }
+
+        function closeItemReviewsModal() {
+            document.getElementById('item-reviews-modal-overlay').style.display = 'none';
+        }
+
+        function openChangePasswordModal() {
+            document.getElementById('self-current-password').value = '';
+            document.getElementById('self-new-password').value = '';
+            document.getElementById('self-confirm-password').value = '';
+            document.getElementById('change-password-modal-overlay').style.display = 'flex';
+        }
+
+        function closeChangePasswordModal() {
+            document.getElementById('change-password-modal-overlay').style.display = 'none';
+        }
+
+        async function saveSelfPassword() {
+            const old_password = document.getElementById('self-current-password').value.trim();
+            const new_password = document.getElementById('self-new-password').value.trim();
+            const confirm_password = document.getElementById('self-confirm-password').value.trim();
+
+            if (!old_password || !new_password || !confirm_password) {
+                alert("Please fill in all password fields.");
+                return;
+            }
+
+            if (new_password !== confirm_password) {
+                alert("New passwords do not match.");
+                return;
+            }
+
+            const token = localStorage.getItem('staff_token');
+            try {
+                const res = await fetch(`${API_URL}/auth/change-password`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ old_password, new_password })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    alert("Password updated successfully! Please log in again with your new password.");
+                    closeChangePasswordModal();
+                    logoutStaff();
+                } else {
+                    alert("Failed to change password: " + data.error);
+                }
+            } catch (err) {
+                alert("Error connecting to server: " + err.message);
+            }
+        }
+
+        function showStaffAlert(title, message, icon = 'ℹ️') {
+            document.getElementById('custom-dialog-icon').innerText = icon;
+            document.getElementById('custom-dialog-title').innerText = title;
+            document.getElementById('custom-dialog-message').innerText = message;
+
+            document.getElementById('custom-dialog-cancel-btn').style.display = 'none';
+            const okBtn = document.getElementById('custom-dialog-ok-btn');
+            okBtn.innerText = "OK";
+            okBtn.onclick = () => {
+                document.getElementById('custom-dialog-overlay').style.display = 'none';
+            };
+
+            document.getElementById('custom-dialog-overlay').style.display = 'flex';
+        }
+
+        // Override window.alert globally on staff portal
+        window.alert = function (message) {
+            showStaffAlert("Notification", message, "ℹ️");
+        };
+
+        function showStaffConfirm(title, message, icon = '❓') {
+            return new Promise((resolve) => {
+                document.getElementById('custom-dialog-icon').innerText = icon;
+                document.getElementById('custom-dialog-title').innerText = title;
+                document.getElementById('custom-dialog-message').innerText = message;
+
+                const cancelBtn = document.getElementById('custom-dialog-cancel-btn');
+                const okBtn = document.getElementById('custom-dialog-ok-btn');
+
+                cancelBtn.style.display = 'inline-block';
+                cancelBtn.innerText = "Cancel";
+                okBtn.innerText = "OK";
+
+                okBtn.onclick = () => {
+                    document.getElementById('custom-dialog-overlay').style.display = 'none';
+                    resolve(true);
+                };
+
+                cancelBtn.onclick = () => {
+                    document.getElementById('custom-dialog-overlay').style.display = 'none';
+                    resolve(false);
+                };
+
+                document.getElementById('custom-dialog-overlay').style.display = 'flex';
+            });
+        }
+    </script>
+</body>
+
+</html>

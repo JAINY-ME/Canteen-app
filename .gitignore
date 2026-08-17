@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# SQLite Database Files
+canteen.db
+canteen.db-shm
+canteen.db-wal
+
+# Temporary / Cache / Local Configurations
+.env
+.gemini/
+scratch/
+.system_generated/
+logs/
+*.log
